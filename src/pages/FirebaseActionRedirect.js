@@ -1,84 +1,62 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { applyActionCode, verifyPasswordResetCode } from 'firebase/auth';
 import { auth } from '../firebase';
+import { CheckCircle, Lock, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const FirebaseActionRedirect = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const [actionType, setActionType] = useState(null);
+  const [ready, setReady] = useState(false);
+
+  const mode = searchParams.get('mode');
+  const oobCode = searchParams.get('oobCode');
 
   useEffect(() => {
-    const handleFirebaseAction = async () => {
-      const mode = searchParams.get('mode');
-      const oobCode = searchParams.get('oobCode');
-      const continueUrl = searchParams.get('continueUrl');
+    console.log('FirebaseActionRedirect mounted with mode:', mode, 'oobCode:', oobCode);
+    
+    if (!mode || !oobCode) {
+      navigate('/');
+      return;
+    }
 
-      console.log('Firebase action detected:', { mode, oobCode, continueUrl });
-
-      if (!mode || !oobCode) {
-        navigate('/');
-        return;
-      }
-
+    setActionType(mode);
+    
+    // Process the action in background
+    const processAction = async () => {
       try {
-        switch (mode) {
-          case 'verifyEmail':
-            console.log('Processing email verification...');
-            await applyActionCode(auth, oobCode);
-            console.log('Email verification successful');
-            navigate('/email-verification-success');
-            break;
-
-          case 'resetPassword':
-            console.log('Processing password reset...');
-            // Verify the code is valid, then redirect to our new password page
-            await verifyPasswordResetCode(auth, oobCode);
-            navigate(`/new-password?mode=${mode}&oobCode=${oobCode}`);
-            break;
-
-          case 'recoverEmail':
-            navigate('/');
-            break;
-
-          default:
-            console.log('Unknown mode:', mode);
-            navigate('/');
-            break;
-        }
-      } catch (error) {
-        console.error('Error handling Firebase action:', error);
-        
-        let errorMessage = 'Authentication action failed.';
-        switch (error.code) {
-          case 'auth/invalid-action-code':
-            errorMessage = 'Invalid or expired link.';
-            break;
-          case 'auth/expired-action-code':
-            errorMessage = 'This link has expired.';
-            break;
-          case 'auth/user-disabled':
-            errorMessage = 'This account has been disabled.';
-            break;
-          case 'auth/user-not-found':
-            errorMessage = 'No account found.';
-            break;
-        }
-        
-        console.error(errorMessage);
-        
         if (mode === 'verifyEmail') {
-          navigate('/email-verification-success');
+          await applyActionCode(auth, oobCode);
+          console.log('Email verification successful');
         } else if (mode === 'resetPassword') {
-          navigate(`/new-password?mode=${mode}&oobCode=${oobCode}`);
-        } else {
-          navigate('/');
+          await verifyPasswordResetCode(auth, oobCode);
+          console.log('Password reset code verified');
         }
+        setReady(true);
+      } catch (error) {
+        console.error('Error processing Firebase action:', error);
+        toast.error('Authentication link has expired or is invalid');
+        setReady(true); // Still show the UI even if there's an error
       }
     };
 
-    handleFirebaseAction();
-  }, [searchParams, navigate]);
+    processAction();
+  }, [mode, oobCode, navigate]);
+
+  const handleEmailVerificationProceed = () => {
+    navigate('/email-verification-success');
+  };
+
+  const handlePasswordResetProceed = () => {
+    navigate(`/new-password?mode=${mode}&oobCode=${oobCode}`);
+  };
+
+  // Always show the beautiful interface
+  console.log('Rendering FirebaseActionRedirect with actionType:', actionType, 'ready:', ready);
+  
+
 
   return (
     <>
@@ -104,7 +82,7 @@ const FirebaseActionRedirect = () => {
         <div className="absolute inset-0 bg-black bg-opacity-30 z-0" />
 
         {/* Site Logo */}
-        <div className="absolute top-6 right-6 z-20">
+        <div className="absolute top-6 left-6 z-20">
           <div className="flex items-center space-x-2">
             <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
               <span className="text-white text-xl">🏛️</span>
@@ -117,32 +95,58 @@ const FirebaseActionRedirect = () => {
         </div>
 
         <div className="max-w-md w-full space-y-8 relative z-10">
-          {/* Processing Box */}
-          <div className="bg-white rounded-xl shadow-2xl p-8">
+          {/* Action Box */}
+          <div className="bg-white rounded-lg shadow-2xl p-8">
             <div className="text-center">
-              <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              </div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                Processing Authentication
-              </h2>
-              <p className="text-gray-600 mb-6">
-                Please wait while we handle your request...
-              </p>
-              
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-start space-x-3">
-                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div className="text-sm text-blue-800">
-                    <p className="font-medium mb-1">Authenticating</p>
-                    <p>We're securely processing your authentication request.</p>
-                  </div>
-                </div>
-              </div>
+              {actionType === 'verifyEmail' ? (
+                <>
+                  <h2 className="text-2xl font-bold text-green-600 mb-4">
+                    Email Verified!
+                  </h2>
+                  <p className="text-gray-600 mb-6">
+                    Your email has been successfully verified. You can now access all features of your account.
+                  </p>
+                  
+                  <button
+                    onClick={handleEmailVerificationProceed}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200"
+                  >
+                    Continue
+                  </button>
+                </>
+              ) : actionType === 'resetPassword' ? (
+                <>
+                  <h2 className="text-2xl font-bold text-blue-600 mb-4">
+                    Password Reset
+                  </h2>
+                  <p className="text-gray-600 mb-6">
+                    Your reset link has been verified. You can now set your new password.
+                  </p>
+                  
+                  <button
+                    onClick={handlePasswordResetProceed}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200"
+                  >
+                    Set New Password
+                  </button>
+                </>
+              ) : (
+                <>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                    Processing...
+                  </h2>
+                  <p className="text-gray-600 mb-6">
+                    Please wait while we process your request.
+                  </p>
+                  
+                  <button
+                    onClick={() => navigate('/')}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200"
+                  >
+                    Go to Home
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

@@ -157,13 +157,19 @@ export const AuthProvider = ({ children }) => {
       
       switch (error.code) {
         case 'auth/email-already-in-use':
-          errorMessage = 'An account with this email already exists.';
+          errorMessage = 'An account with this email already exists. Please try signing in instead.';
           break;
         case 'auth/invalid-email':
-          errorMessage = 'Invalid email address.';
+          errorMessage = 'Please enter a valid email address.';
           break;
         case 'auth/weak-password':
-          errorMessage = 'Password should be at least 6 characters.';
+          errorMessage = 'Password must be at least 6 characters long.';
+          break;
+        case 'auth/network-request-failed':
+          errorMessage = 'Network error. Please check your connection and try again.';
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = 'Too many attempts. Please try again later.';
           break;
       }
       
