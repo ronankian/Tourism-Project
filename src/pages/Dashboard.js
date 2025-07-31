@@ -1,10 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'framer-motion';
-import { Calendar, MapPin, Clock, Users, Settings, LogOut } from 'lucide-react';
+import { Calendar, MapPin, Clock, Users, Settings, LogOut, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const Dashboard = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, deleteUserAccount } = useAuth();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const mockBookings = [
     {
@@ -33,6 +37,27 @@ const Dashboard = () => {
     { label: 'Upcoming Tours', value: '2', icon: Clock },
     { label: 'Total Spent', value: '₱1,200', icon: Users }
   ];
+
+  const handleDeleteAccount = async (e) => {
+    e.preventDefault();
+    if (!deletePassword.trim()) {
+      toast.error('Please enter your password');
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const success = await deleteUserAccount(deletePassword);
+      if (success) {
+        setShowDeleteModal(false);
+        setDeletePassword('');
+      }
+    } catch (error) {
+      console.error('Error deleting account:', error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -147,6 +172,13 @@ const Dashboard = () => {
                   <LogOut className="w-6 h-6 text-red-600" />
                   <span className="font-medium text-red-600">Logout</span>
                 </button>
+                <button 
+                  onClick={() => setShowDeleteModal(true)}
+                  className="flex items-center space-x-3 p-4 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+                >
+                  <Trash2 className="w-6 h-6 text-red-600" />
+                  <span className="font-medium text-red-600">Delete Account</span>
+                </button>
               </div>
             </div>
           </div>
@@ -184,6 +216,59 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Delete Account Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <Trash2 className="w-6 h-6 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Delete Account</h3>
+                <p className="text-sm text-gray-600">This action cannot be undone</p>
+              </div>
+            </div>
+            
+            <form onSubmit={handleDeleteAccount} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Enter your password to confirm
+                </label>
+                <input
+                  type="password"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  placeholder="Your password"
+                  required
+                />
+              </div>
+              
+              <div className="flex space-x-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setDeletePassword('');
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isDeleting}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isDeleting ? 'Deleting...' : 'Delete Account'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

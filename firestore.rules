@@ -24,5 +24,15 @@ service cloud.firestore {
         request.auth.token.role == 'admin'
       );
     }
+    
+    // Verification codes - allow read/write for verification process
+    match /verification_codes/{email} {
+      allow read, write: if true;
+    }
+    
+    // Reset codes - allow read/write for password reset process
+    match /reset_codes/{email} {
+      allow read, write: if true;
+    }
   }
 } 

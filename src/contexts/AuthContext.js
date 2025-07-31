@@ -6,9 +6,17 @@ import {
   signInWithEmailAndPassword, 
   signOut, 
   onAuthStateChanged,
-  updateProfile 
+  updateProfile,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  verifyPasswordResetCode,
+  confirmPasswordReset,
+  deleteUser,
+  reauthenticateWithCredential,
+  EmailAuthProvider
+  
 } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 
 const AuthContext = createContext();
@@ -67,20 +75,12 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, phone, password) => {
     try {
-      let userCredential;
-      
-      if (email) {
-        // Login with email
-        userCredential = await signInWithEmailAndPassword(auth, email, password);
-      } else if (phone) {
-        // For phone login, we need to find the user by phone number first
-        // This is a simplified approach - in production you might want to use phone auth
-        toast.error('Phone login not implemented yet. Please use email.');
-        return false;
-      } else {
-        toast.error('Please enter a valid email or phone number.');
+      if (!email) {
+        toast.error('Please enter a valid email address.');
         return false;
       }
+      
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
       toast.success('Welcome back!');
       navigate('/dashboard');
@@ -114,40 +114,43 @@ export const AuthProvider = ({ children }) => {
       let userCredential;
       let firebaseUser;
       
-      if (userData.email) {
+      if (userData.email && userData.email.trim()) {
         // Register with email
-        userCredential = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
+        userCredential = await createUserWithEmailAndPassword(auth, userData.email.trim(), userData.password);
         firebaseUser = userCredential.user;
-      } else if (userData.phone) {
-        // For phone registration, we need to implement phone auth
-        toast.error('Phone registration not implemented yet. Please use email.');
-        return false;
+        
+        // Update display name
+        const fullName = `${userData.firstName} ${userData.lastName}`;
+        await updateProfile(firebaseUser, {
+          displayName: fullName
+        });
+
+                // Store additional user data in Firestore
+        await setDoc(doc(db, 'users', firebaseUser.uid), {
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          fullName: fullName,
+          email: userData.email,
+          role: 'traveler',
+          avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
+          createdAt: new Date().toISOString(),
+          emailVerified: false
+        });
+
+        // Send verification email using Firebase's built-in method with custom action settings
+        const actionCodeSettings = {
+          url: `${window.location.origin}/firebase-action`,
+          handleCodeInApp: true
+        };
+        
+        await sendEmailVerification(firebaseUser, actionCodeSettings);
+
+        toast.success('Account created successfully! Please check your email to verify your account.');
+        return { success: true };
       } else {
-        toast.error('Please enter a valid email or phone number.');
-        return false;
+        toast.error('Please enter a valid email address.');
+        return { success: false };
       }
-
-      // Update display name
-      const fullName = `${userData.firstName} ${userData.lastName}`;
-      await updateProfile(firebaseUser, {
-        displayName: fullName
-      });
-
-      // Store additional user data in Firestore
-      await setDoc(doc(db, 'users', firebaseUser.uid), {
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        fullName: fullName,
-        email: userData.email,
-        phone: userData.phone,
-        role: 'traveler',
-        avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
-        createdAt: new Date().toISOString()
-      });
-
-      toast.success('Account created successfully!');
-      navigate('/dashboard');
-      return true;
     } catch (error) {
       console.error('Registration error:', error);
       let errorMessage = 'Registration failed. Please try again.';
@@ -165,7 +168,7 @@ export const AuthProvider = ({ children }) => {
       }
       
       toast.error(errorMessage);
-      return false;
+      return { success: false };
     }
   };
 
@@ -180,7 +183,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const updateProfile = async (userData) => {
+  const updateUserProfile = async (userData) => {
     try {
       const currentUser = auth.currentUser;
       if (!currentUser) {
@@ -209,13 +212,158 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Resend email verification using Firebase native method
+  const resendEmailVerification = async () => {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        toast.error('No user logged in');
+        return false;
+      }
+
+      if (currentUser.emailVerified) {
+        toast.success('Email is already verified!');
+        return true;
+      }
+
+      const actionCodeSettings = {
+        url: `${window.location.origin}/firebase-action`,
+        handleCodeInApp: true
+      };
+      
+      await sendEmailVerification(currentUser, actionCodeSettings);
+      toast.success('Verification email sent! Please check your inbox.');
+      return true;
+    } catch (error) {
+      console.error('Error sending verification email:', error);
+      toast.error('Failed to send verification email. Please try again.');
+      return false;
+    }
+  };
+
+  // Check if email is verified and update user data
+  const checkEmailVerification = async () => {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        return false;
+      }
+
+      // Reload user to get latest email verification status
+      await currentUser.reload();
+      
+      if (currentUser.emailVerified) {
+        // Update Firestore user document
+        await updateDoc(doc(db, 'users', currentUser.uid), {
+          emailVerified: true,
+          verifiedAt: serverTimestamp()
+        });
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error checking email verification:', error);
+      return false;
+    }
+  };
+
+  const sendPasswordReset = async (email) => {
+    try {
+              // Use Firebase's built-in password reset email with custom action settings
+        const actionCodeSettings = {
+          url: `${window.location.origin}/firebase-action`,
+          handleCodeInApp: true
+        };
+        
+        await sendPasswordResetEmail(auth, email, actionCodeSettings);
+        toast.success('Password reset email sent! Please check your inbox.');
+      return true;
+    } catch (error) {
+      console.error('Error sending password reset email:', error);
+      let errorMessage = 'Failed to send password reset email. Please try again.';
+      
+      switch (error.code) {
+        case 'auth/user-not-found':
+          errorMessage = 'No account found with this email address.';
+          break;
+        case 'auth/invalid-email':
+          errorMessage = 'Invalid email address.';
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = 'Too many attempts. Please try again later.';
+          break;
+      }
+      
+      toast.error(errorMessage);
+      return false;
+    }
+  };
+
+
+
+  // Delete user account function
+  const deleteUserAccount = async (password) => {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        toast.error('No user logged in');
+        return false;
+      }
+
+      // Re-authenticate user before deletion
+      const credential = EmailAuthProvider.credential(currentUser.email, password);
+      await reauthenticateWithCredential(currentUser, credential);
+
+      // Delete user data from Firestore
+      await setDoc(doc(db, 'users', currentUser.uid), {}, { merge: true });
+
+      // Delete verification codes if any
+      if (currentUser.email) {
+        await setDoc(doc(db, 'verification_codes', currentUser.email), {}, { merge: true });
+        await setDoc(doc(db, 'reset_codes', currentUser.email), {}, { merge: true });
+      }
+
+      // Delete the user account from Firebase Auth
+      await deleteUser(currentUser);
+
+      toast.success('Account deleted successfully');
+      navigate('/');
+      return true;
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      let errorMessage = 'Failed to delete account. Please try again.';
+      
+      switch (error.code) {
+        case 'auth/wrong-password':
+          errorMessage = 'Incorrect password. Please try again.';
+          break;
+        case 'auth/requires-recent-login':
+          errorMessage = 'Please log in again before deleting your account.';
+          break;
+        case 'auth/user-mismatch':
+          errorMessage = 'User mismatch. Please try again.';
+          break;
+      }
+      
+      toast.error(errorMessage);
+      return false;
+    }
+  };
+
+  
+
   const value = {
     user,
     loading,
     login,
     register,
     logout,
-    updateProfile,
+    updateProfile: updateUserProfile,
+    resendEmailVerification,
+    checkEmailVerification,
+    sendPasswordReset,
+    deleteUserAccount,
     isAuthenticated: !!user,
     isAdmin: user?.role === 'admin',
     isOperator: user?.role === 'operator',

@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
-import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
+import { auth } from '../firebase';
+import toast from 'react-hot-toast';
 
 const Login = () => {
   const [formData, setFormData] = useState({
-    emailOrPhone: '',
+    email: '',
     password: ''
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -34,14 +36,16 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
 
-    try {
-      // Check if input is email or phone
-      const isEmail = formData.emailOrPhone.includes('@');
-      const email = isEmail ? formData.emailOrPhone : '';
-      const phone = !isEmail ? formData.emailOrPhone : '';
-      
-      const success = await login(email, phone, formData.password);
+        try {
+      const success = await login(formData.email, '', formData.password);
       if (success) {
+        // Check if email is verified
+        const currentUser = auth.currentUser;
+        if (currentUser && !currentUser.emailVerified) {
+          toast.error('Please verify your email before logging in.');
+          navigate('/verification', { state: { email: formData.email } });
+          return;
+        }
         navigate('/dashboard');
       }
     } catch (error) {
@@ -109,24 +113,24 @@ const Login = () => {
             <div className="space-y-4">
               <div className="relative">
                 <input
-                  id="emailOrPhone"
-                  name="emailOrPhone"
-                  type="text"
+                  id="email"
+                  name="email"
+                  type="email"
                   required
-                  value={formData.emailOrPhone}
+                  value={formData.email}
                   onChange={handleChange}
-                  onFocus={() => handleFocus('emailOrPhone')}
+                  onFocus={() => handleFocus('email')}
                   onBlur={handleBlur}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 <label 
-                  htmlFor="emailOrPhone"
+                  htmlFor="email"
                   className={`absolute left-4 transition-all duration-200 pointer-events-none ${
-                    formData.emailOrPhone || focusedField === 'emailOrPhone'
+                    formData.email || focusedField === 'email'
                       ? '-top-2 bg-white px-2 text-sm font-medium'
                       : 'top-1/2 transform -translate-y-1/2 text-gray-500'
                   } ${
-                    focusedField === 'emailOrPhone' ? 'text-blue-600' : 'text-gray-500'
+                    focusedField === 'email' ? 'text-blue-600' : 'text-gray-500'
                   }`}
                 >
                   Email address
@@ -186,9 +190,9 @@ const Login = () => {
 
             <div className="text-center space-y-2">
               <div>
-                <a href="#" className="text-blue-600 hover:text-blue-500 font-medium">
+                <Link to="/reset-password" className="text-blue-600 hover:text-blue-500 font-medium">
                   Forgot Password?
-                </a>
+                </Link>
               </div>
               
               {/* Divider */}
