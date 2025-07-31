@@ -46,7 +46,7 @@ const FirebaseActionRedirect = () => {
   }, [mode, oobCode, navigate]);
 
   const handleEmailVerificationProceed = () => {
-    navigate('/email-verification-success');
+    navigate('/login');
   };
 
   const handlePasswordResetProceed = () => {
@@ -111,7 +111,7 @@ const FirebaseActionRedirect = () => {
                     onClick={handleEmailVerificationProceed}
                     className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200"
                   >
-                    Continue
+                    Sign In
                   </button>
                 </>
               ) : actionType === 'resetPassword' ? (
