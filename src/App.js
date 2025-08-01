@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -11,7 +12,7 @@ import Booking from './pages/Booking';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Verification from './pages/Verification';
-import EmailVerificationSuccess from './pages/EmailVerificationSuccess';
+
 import PasswordReset from './pages/PasswordReset';
 import NewPassword from './pages/NewPassword';
 import PasswordResetSuccess from './pages/PasswordResetSuccess';
@@ -30,7 +31,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/verification" element={<Verification />} />
-          <Route path="/email-verification-success" element={<EmailVerificationSuccess />} />
+
           <Route path="/reset-password" element={<PasswordReset />} />
           <Route path="/new-password" element={<NewPassword />} />
           <Route path="/password-reset-success" element={<PasswordResetSuccess />} />
@@ -102,6 +103,16 @@ function App() {
             </div>
           } />
         </Routes>
+        <Toaster 
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#333',
+              color: '#fff',
+            },
+          }}
+        />
       </AuthProvider>
     </Router>
   );

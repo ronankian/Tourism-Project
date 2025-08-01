@@ -38,15 +38,15 @@ const PasswordResetSuccess = () => {
           </Link>
         </div>
 
-        {/* Site Logo */}
-        <div className="absolute top-6 right-6 z-20">
+        {/* Site Logo - Right side to avoid back button overlap */}
+        <div className="absolute top-4 right-4 z-20 md:top-6 md:right-6">
           <Link to="/" className="flex items-center space-x-2">
-            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white text-xl">🏛️</span>
+            <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+              <span className="text-white text-lg md:text-xl">🏛️</span>
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-white">Rosario Tourism</h1>
-              <p className="text-xs text-gray-200">Cavite, Philippines</p>
+            <div className="hidden sm:block">
+              <h1 className="text-lg md:text-xl font-bold text-white whitespace-nowrap">Rosario Tourism</h1>
+              <p className="text-xs text-gray-200 whitespace-nowrap">Cavite, Philippines</p>
             </div>
           </Link>
         </div>

@@ -17,6 +17,7 @@ const NewPassword = () => {
   const [focusedField, setFocusedField] = useState('');
   const [email, setEmail] = useState('');
   const [success, setSuccess] = useState(false);
+  const [errors, setErrors] = useState({});
   
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -67,24 +68,87 @@ const NewPassword = () => {
     validateResetCode();
   }, [oobCode, mode, navigate]);
 
+  const validateField = (name, value) => {
+    const newErrors = { ...errors };
+    
+    switch (name) {
+      case 'newPassword':
+        if (value && value.length < 8) {
+          newErrors.newPassword = 'Password must be at least 8 characters long';
+        } else {
+          delete newErrors.newPassword;
+        }
+        // Also check confirm password match when password changes
+        if (confirmPassword && value !== confirmPassword) {
+          newErrors.confirmPassword = 'Passwords do not match';
+        } else if (confirmPassword && value === confirmPassword) {
+          delete newErrors.confirmPassword;
+        }
+        break;
+      case 'confirmPassword':
+        if (value && newPassword && value !== newPassword) {
+          newErrors.confirmPassword = 'Passwords do not match';
+        } else if (value === newPassword) {
+          delete newErrors.confirmPassword;
+        }
+        break;
+      default:
+        break;
+    }
+    
+    setErrors(newErrors);
+  };
+
+  const handlePasswordChange = (e) => {
+    const value = e.target.value;
+    setNewPassword(value);
+    validateField('newPassword', value);
+  };
+
+  const handleConfirmPasswordChange = (e) => {
+    const value = e.target.value;
+    setConfirmPassword(value);
+    validateField('confirmPassword', value);
+  };
+
   const handleFocus = (fieldName) => {
     setFocusedField(fieldName);
   };
 
-  const handleBlur = () => {
+  const handleBlur = (e) => {
     setFocusedField('');
+    // Validate field when user leaves it
+    if (e && e.target) {
+      validateField(e.target.name, e.target.value);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (newPassword !== confirmPassword) {
-      toast.error('Passwords do not match.');
+    // Check if there are any existing validation errors
+    if (Object.keys(errors).length > 0) {
+      toast.error('Please fix the errors above before submitting');
       return;
     }
     
-    if (newPassword.length < 6) {
-      toast.error('Password must be at least 6 characters long.');
+    if (!newPassword.trim()) {
+      toast.error('Please enter a new password.');
+      return;
+    }
+    
+    if (newPassword.length < 8) {
+      toast.error('Password must be at least 8 characters long.');
+      return;
+    }
+    
+    if (!confirmPassword.trim()) {
+      toast.error('Please confirm your new password.');
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      toast.error('Passwords do not match. Please make sure both passwords are identical.');
       return;
     }
     
@@ -104,13 +168,16 @@ const NewPassword = () => {
       
       switch (error.code) {
         case 'auth/weak-password':
-          errorMessage = 'Password is too weak. Please choose a stronger password.';
+          errorMessage = 'Password is too weak. Please choose a stronger password with at least 8 characters.';
           break;
         case 'auth/invalid-action-code':
-          errorMessage = 'Invalid password reset link.';
+          errorMessage = 'Invalid password reset link. Please request a new password reset.';
           break;
         case 'auth/expired-action-code':
-          errorMessage = 'Password reset link has expired.';
+          errorMessage = 'Password reset link has expired. Please request a new password reset.';
+          break;
+        default:
+          errorMessage = 'Failed to reset password. Please try again or request a new reset link.';
           break;
       }
       
@@ -222,15 +289,15 @@ const NewPassword = () => {
           </Link>
         </div>
 
-        {/* Site Logo */}
-        <div className="absolute top-6 right-6 z-20">
+        {/* Site Logo - Right side to avoid back button overlap */}
+        <div className="absolute top-4 right-4 z-20 md:top-6 md:right-6">
           <Link to="/" className="flex items-center space-x-2">
-            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white text-xl">🏛️</span>
+            <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+              <span className="text-white text-lg md:text-xl">🏛️</span>
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-white">Rosario Tourism</h1>
-              <p className="text-xs text-gray-200">Cavite, Philippines</p>
+            <div className="hidden sm:block">
+              <h1 className="text-lg md:text-xl font-bold text-white whitespace-nowrap">Rosario Tourism</h1>
+              <p className="text-xs text-gray-200 whitespace-nowrap">Cavite, Philippines</p>
             </div>
           </Link>
         </div>
@@ -304,11 +371,11 @@ const NewPassword = () => {
                     type={showPassword ? 'text' : 'password'}
                     required
                     value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
+                    onChange={handlePasswordChange}
                     onFocus={() => handleFocus('newPassword')}
                     onBlur={handleBlur}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-12"
-                    placeholder="Enter new password"
+                   
                   />
                   <label 
                     htmlFor="newPassword"
@@ -330,6 +397,9 @@ const NewPassword = () => {
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
+                {errors.newPassword && (
+                  <p className="mt-1 text-sm text-red-600">{errors.newPassword}</p>
+                )}
 
                 <div className="relative">
                   <input
@@ -338,11 +408,10 @@ const NewPassword = () => {
                     type={showConfirmPassword ? 'text' : 'password'}
                     required
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onChange={handleConfirmPasswordChange}
                     onFocus={() => handleFocus('confirmPassword')}
                     onBlur={handleBlur}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-12"
-                    placeholder="Confirm new password"
                   />
                   <label 
                     htmlFor="confirmPassword"
@@ -364,6 +433,9 @@ const NewPassword = () => {
                     {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
+                {errors.confirmPassword && (
+                  <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
+                )}
 
                 <button
                   type="submit"

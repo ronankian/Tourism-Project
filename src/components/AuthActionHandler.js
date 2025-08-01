@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { applyActionCode, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
+import { isSignInWithEmailLink } from 'firebase/auth';
 import { auth } from '../firebase';
 import toast from 'react-hot-toast';
 
@@ -14,9 +14,14 @@ const AuthActionHandler = () => {
       const mode = searchParams.get('mode');
       const oobCode = searchParams.get('oobCode');
       
+      // Skip if we're already on the FirebaseActionRedirect page
+      if (location.pathname === '/__/auth/action' || location.pathname === '/firebase-action') {
+        return;
+      }
+      
       // Check if this is an email verification link (for handleCodeInApp)
       if (isSignInWithEmailLink(auth, window.location.href)) {
-        navigate('/email-verification-success');
+        // Let FirebaseActionRedirect handle this instead
         return;
       }
       
@@ -27,10 +32,8 @@ const AuthActionHandler = () => {
       try {
         switch (mode) {
           case 'verifyEmail':
-            // Apply the email verification code
-            await applyActionCode(auth, oobCode);
-            navigate('/email-verification-success');
-            break;
+            // Let FirebaseActionRedirect handle email verification instead
+            return;
             
           case 'resetPassword':
             // Redirect to new password page with the reset code
@@ -80,7 +83,7 @@ const AuthActionHandler = () => {
     };
     
     handleAuthAction();
-  }, [searchParams, navigate]);
+  }, [searchParams, navigate, location.pathname]);
   
   return null; // This component doesn't render anything
 };

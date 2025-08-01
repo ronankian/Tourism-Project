@@ -4,58 +4,121 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { Eye, EyeOff, User, Mail, Lock } from 'lucide-react';
 
-import toast from 'react-hot-toast';
-
 const Register = () => {
      const [formData, setFormData] = useState({
      firstName: '',
      lastName: '',
      email: '',
-     password: ''
+     password: '',
+     confirmPassword: ''
    });
   const [inputType, setInputType] = useState('email'); // Only email now
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState('');
+  const [errors, setErrors] = useState({});
+  const [registrationError, setRegistrationError] = useState('');
   const { register } = useAuth();
   const navigate = useNavigate();
 
+  const validateField = (name, value) => {
+    const newErrors = { ...errors };
+    
+    switch (name) {
+      case 'password':
+        if (value && value.length < 8) {
+          newErrors.password = 'Password must be at least 8 characters long';
+        } else {
+          delete newErrors.password;
+        }
+        // Also check confirm password match when password changes
+        if (formData.confirmPassword && value !== formData.confirmPassword) {
+          newErrors.confirmPassword = 'Passwords do not match';
+        } else if (formData.confirmPassword && value === formData.confirmPassword) {
+          delete newErrors.confirmPassword;
+        }
+        break;
+      case 'confirmPassword':
+        if (value && formData.password && value !== formData.password) {
+          newErrors.confirmPassword = 'Passwords do not match';
+        } else if (value === formData.password) {
+          delete newErrors.confirmPassword;
+        }
+        break;
+      default:
+        break;
+    }
+    
+    setErrors(newErrors);
+  };
+
   const handleChange = (e) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: value
     });
+    
+    // Clear registration error when user starts typing
+    if (registrationError) {
+      setRegistrationError('');
+    }
+    
+    // Validate the field as user types
+    validateField(name, value);
   };
 
   const handleFocus = (fieldName) => {
     setFocusedField(fieldName);
   };
 
-  const handleBlur = () => {
+  const handleBlur = (e) => {
     setFocusedField('');
+    // Validate field when user leaves it
+    if (e && e.target) {
+      validateField(e.target.name, e.target.value);
+    }
   };
 
     const handleSubmit = async (e) => {
     e.preventDefault();
+    setRegistrationError(''); // Clear previous errors
     
-    // Validation
+    // Check if there are any existing validation errors
+    if (Object.keys(errors).length > 0) {
+      setRegistrationError('Please fix the errors above before submitting');
+      return;
+    }
+    
+    // Basic validation for required fields
     if (!formData.firstName.trim()) {
-      toast.error('Please enter your first name');
+      setRegistrationError('Please enter your first name');
       return;
     }
     
     if (!formData.lastName.trim()) {
-      toast.error('Please enter your last name');
+      setRegistrationError('Please enter your last name');
       return;
     }
     
     if (!formData.email.trim()) {
-      toast.error('Please enter your email address');
+      setRegistrationError('Please enter your email address');
       return;
     }
     
-    if (!formData.password || formData.password.length < 6) {
-      toast.error('Password must be at least 6 characters long');
+    if (!formData.password || formData.password.length < 8) {
+      setRegistrationError('Password must be at least 8 characters long');
+      return;
+    }
+    
+    if (!formData.confirmPassword) {
+      setRegistrationError('Please confirm your password');
+      return;
+    }
+    
+    if (formData.password !== formData.confirmPassword) {
+      setRegistrationError('Passwords do not match. Please make sure both passwords are identical.');
       return;
     }
     
@@ -67,15 +130,17 @@ const Register = () => {
         lastName: formData.lastName,
         email: formData.email,
         password: formData.password
-      });
+      }, false); // Pass false to disable toast
         
       if (result && result.success) {
         // Redirect to email verification page
         navigate('/verification', { state: { email: formData.email, type: 'email' } });
+      } else {
+        setRegistrationError(result.error || 'Registration failed. Please try again.');
       }
     } catch (error) {
       console.error('Registration error:', error);
-      toast.error('Registration failed. Please try again.');
+      setRegistrationError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -110,15 +175,15 @@ const Register = () => {
       {/* Overlay */}
       <div className="absolute inset-0 bg-black bg-opacity-30 z-0" />
 
-      {/* Site Logo - Top Left (Desktop) / Center (Mobile) */}
-      <div className="absolute top-6 left-6 z-20 md:left-6 md:top-6 left-1/2 top-6 transform -translate-x-1/2 md:transform-none">
+      {/* Site Logo - Responsive positioning */}
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 md:top-6 md:left-6 md:transform-none">
         <Link to="/" className="flex items-center space-x-2">
-          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-            <span className="text-white text-xl">🏛️</span>
+          <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+            <span className="text-white text-lg md:text-xl">🏛️</span>
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-white">Rosario Tourism</h1>
-            <p className="text-xs text-gray-200">Cavite, Philippines</p>
+          <div className="hidden sm:block">
+            <h1 className="text-lg md:text-xl font-bold text-white whitespace-nowrap">Rosario Tourism</h1>
+            <p className="text-xs text-gray-200 whitespace-nowrap">Cavite, Philippines</p>
           </div>
         </Link>
       </div>
@@ -257,7 +322,60 @@ const Register = () => {
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
+            {errors.password && (
+              <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+            )}
+
+            {/* Confirm Password Input */}
+            <div className="relative">
+              <input
+                id="confirmPassword"
+                name="confirmPassword"
+                type={showConfirmPassword ? 'text' : 'password'}
+                required
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                onFocus={() => handleFocus('confirmPassword')}
+                onBlur={handleBlur}
+                autoComplete="new-password"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-12"
+                style={{ 
+                  WebkitTextSecurity: showConfirmPassword ? 'none' : 'disc',
+                  WebkitAppearance: 'none',
+                  MozAppearance: 'none',
+                  msClear: 'none'
+                }}
+              />
+              <label 
+                htmlFor="confirmPassword" 
+                className={`absolute left-4 transition-all duration-200 pointer-events-none ${
+                  formData.confirmPassword || focusedField === 'confirmPassword'
+                    ? '-top-2 bg-white px-2 text-sm font-medium'
+                    : 'top-1/2 transform -translate-y-1/2 text-gray-500'
+                } ${
+                  focusedField === 'confirmPassword' ? 'text-blue-600' : 'text-gray-500'
+                }`}
+              >
+                Confirm Password
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
+            {errors.confirmPassword && (
+              <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
+            )}
           </div>
+
+          {registrationError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <p className="text-sm text-red-600 text-center">{registrationError}</p>
+            </div>
+          )}
 
                      <div>
              <button

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { ArrowLeft, Mail } from 'lucide-react';
@@ -9,10 +9,10 @@ const PasswordReset = () => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [emailNotFound, setEmailNotFound] = useState(false);
   const [focusedField, setFocusedField] = useState('');
   
   const { sendPasswordReset } = useAuth();
-  const navigate = useNavigate();
 
   const handleSendReset = async () => {
     if (!email) {
@@ -21,13 +21,17 @@ const PasswordReset = () => {
     }
 
     setLoading(true);
+    setEmailNotFound(false); // Reset error state
     try {
       const success = await sendPasswordReset(email);
       if (success) {
         setEmailSent(true);
+      } else {
+        setEmailNotFound(true);
       }
     } catch (error) {
       console.error('Error sending reset email:', error);
+      setEmailNotFound(true);
     } finally {
       setLoading(false);
     }
@@ -77,15 +81,15 @@ const PasswordReset = () => {
           </Link>
         </div>
 
-        {/* Site Logo */}
-        <div className="absolute top-6 right-6 z-20">
+        {/* Site Logo - Right side to avoid back button overlap */}
+        <div className="absolute top-4 right-4 z-20 md:top-6 md:right-6">
           <Link to="/" className="flex items-center space-x-2">
-            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white text-xl">🏛️</span>
+            <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+              <span className="text-white text-lg md:text-xl">🏛️</span>
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-white">Rosario Tourism</h1>
-              <p className="text-xs text-gray-200">Cavite, Philippines</p>
+            <div className="hidden sm:block">
+              <h1 className="text-lg md:text-xl font-bold text-white whitespace-nowrap">Rosario Tourism</h1>
+              <p className="text-xs text-gray-200 whitespace-nowrap">Cavite, Philippines</p>
             </div>
           </Link>
         </div>
@@ -108,7 +112,9 @@ const PasswordReset = () => {
               <p className="text-gray-600 mb-6">
                 {emailSent 
                   ? "We've sent password reset instructions to your email"
-                  : "Enter your email to receive password reset instructions"
+                  : emailNotFound
+                    ? "Email address not found in our records"
+                    : "Enter your email to receive password reset instructions"
                 }
               </p>
             </div>
@@ -145,6 +151,48 @@ const PasswordReset = () => {
                   {loading ? 'Sending...' : 'Resend Reset Email'}
                 </button>
               </div>
+            ) : emailNotFound ? (
+              <div className="space-y-6 text-center">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-red-600">Email Not Registered</h3>
+                <p className="text-gray-600">
+                  The email address <strong>{email}</strong> is not registered in our system.
+                </p>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div className="flex items-start space-x-3">
+                    <div className="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="text-sm text-red-800">
+                      <p className="font-medium mb-1">No account found</p>
+                      <p>Please check your email address or create a new account.</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => {
+                      setEmailNotFound(false);
+                      setEmail('');
+                    }}
+                    className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200"
+                  >
+                    Try Different Email
+                  </button>
+                  <Link
+                    to="/register"
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 text-center"
+                  >
+                    Create Account
+                  </Link>
+                </div>
+              </div>
             ) : (
               <div className="space-y-6">
                 <div className="relative">
@@ -158,7 +206,7 @@ const PasswordReset = () => {
                     onFocus={() => handleFocus('email')}
                     onBlur={handleBlur}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter your email address"
+   
                   />
                   <label 
                     htmlFor="email"

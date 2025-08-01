@@ -4,7 +4,6 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { Eye, EyeOff } from 'lucide-react';
 import { auth } from '../firebase';
-import toast from 'react-hot-toast';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -14,6 +13,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState('');
+  const [loginError, setLoginError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -22,6 +22,10 @@ const Login = () => {
       ...formData,
       [e.target.name]: e.target.value
     });
+    // Clear error when user starts typing
+    if (loginError) {
+      setLoginError('');
+    }
   };
 
   const handleFocus = (fieldName) => {
@@ -35,21 +39,31 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setLoginError(''); // Clear previous errors
 
-        try {
-      const success = await login(formData.email, '', formData.password);
-      if (success) {
+    try {
+      console.log('Form submitted with email:', formData.email);
+      console.log('Form submitted with password length:', formData.password?.length);
+      
+      const result = await login(formData.email, formData.password, false); // Pass false to disable toast
+      console.log('Login result:', result);
+      
+      if (result.success) {
         // Check if email is verified
         const currentUser = auth.currentUser;
         if (currentUser && !currentUser.emailVerified) {
-          toast.error('Please verify your email before logging in.');
+          setLoginError('Please verify your email before logging in.');
           navigate('/verification', { state: { email: formData.email } });
           return;
         }
         navigate('/dashboard');
+      } else {
+        setLoginError(result.error || 'Login failed. Please try again.');
+        console.log('Login failed:', result.error);
       }
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('Login error caught in form:', error);
+      setLoginError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -82,15 +96,15 @@ const Login = () => {
       {/* Overlay */}
       <div className="absolute inset-0 bg-black bg-opacity-30 z-0" />
 
-      {/* Site Logo - Top Left (Desktop) / Center (Mobile) */}
-      <div className="absolute top-6 left-6 z-20 md:left-6 md:top-6 left-1/2 top-6 transform -translate-x-1/2 md:transform-none">
+      {/* Site Logo - Responsive positioning */}
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 md:top-6 md:left-6 md:transform-none">
         <Link to="/" className="flex items-center space-x-2">
-          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-            <span className="text-white text-xl">🏛️</span>
+          <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+            <span className="text-white text-lg md:text-xl">🏛️</span>
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-white">Rosario Tourism</h1>
-            <p className="text-xs text-gray-200">Cavite, Philippines</p>
+          <div className="hidden sm:block">
+            <h1 className="text-lg md:text-xl font-bold text-white whitespace-nowrap">Rosario Tourism</h1>
+            <p className="text-xs text-gray-200 whitespace-nowrap">Cavite, Philippines</p>
           </div>
         </Link>
       </div>
@@ -177,6 +191,12 @@ const Login = () => {
                 </button>
               </div>
             </div>
+
+            {loginError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <p className="text-sm text-red-600 text-center">{loginError}</p>
+              </div>
+            )}
 
             <div>
               <button

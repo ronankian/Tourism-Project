@@ -9,6 +9,7 @@ import {
   updateProfile,
   sendEmailVerification,
   sendPasswordResetEmail,
+  fetchSignInMethodsForEmail,
   verifyPasswordResetCode,
   confirmPasswordReset,
   deleteUser,
@@ -16,7 +17,7 @@ import {
   EmailAuthProvider
   
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 
 const AuthContext = createContext();
@@ -73,44 +74,78 @@ export const AuthProvider = ({ children }) => {
     return () => unsubscribe();
   }, []);
 
-  const login = async (email, phone, password) => {
+  const login = async (email, password, showToast = true) => {
     try {
+      console.log('Login attempt with email:', email);
+      
       if (!email) {
-        toast.error('Please enter a valid email address.');
-        return false;
+        const errorMsg = 'Please enter a valid email address.';
+        if (showToast) toast.error(errorMsg);
+        return { success: false, error: errorMsg };
+      }
+      
+      if (!password) {
+        const errorMsg = 'Please enter your password.';
+        if (showToast) toast.error(errorMsg);
+        return { success: false, error: errorMsg };
       }
       
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.log('Login successful');
       
-      toast.success('Welcome back!');
-      navigate('/dashboard');
-      return true;
+      if (showToast) {
+        toast.success('Welcome back!');
+        navigate('/dashboard');
+      }
+      return { success: true };
     } catch (error) {
       console.error('Login error:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      
       let errorMessage = 'Login failed. Please try again.';
       
       switch (error.code) {
         case 'auth/user-not-found':
-          errorMessage = 'No account found with this email.';
+          errorMessage = 'Invalid account. No account found with this email address.';
           break;
         case 'auth/wrong-password':
-          errorMessage = 'Incorrect password.';
+          errorMessage = 'Incorrect password. Please check your password and try again.';
           break;
         case 'auth/invalid-email':
-          errorMessage = 'Invalid email address.';
+          errorMessage = 'Invalid email address format.';
+          break;
+        case 'auth/user-disabled':
+          errorMessage = 'This account has been disabled. Please contact support.';
           break;
         case 'auth/too-many-requests':
-          errorMessage = 'Too many failed attempts. Please try again later.';
+          errorMessage = 'Too many failed login attempts. Please try again later.';
+          break;
+        case 'auth/invalid-credential':
+          errorMessage = 'Invalid credentials. Please check your email and password.';
+          break;
+        default:
+          errorMessage = 'Login failed. Please check your credentials and try again.';
           break;
       }
       
-      toast.error(errorMessage);
-      return false;
+      console.log('Login error message:', errorMessage);
+      if (showToast) {
+        toast.error(errorMessage);
+      }
+      return { success: false, error: errorMessage };
     }
   };
 
-  const register = async (userData) => {
+  const register = async (userData, showToast = true) => {
     try {
+      // Validate password length on server side as well
+      if (!userData.password || userData.password.length < 8) {
+        const errorMsg = 'Password must be at least 8 characters long';
+        if (showToast) toast.error(errorMsg);
+        return { success: false, error: errorMsg };
+      }
+      
       let userCredential;
       let firebaseUser;
       
@@ -145,11 +180,14 @@ export const AuthProvider = ({ children }) => {
         
         await sendEmailVerification(firebaseUser, actionCodeSettings);
 
-        toast.success('Account created successfully! Please check your email to verify your account.');
+        if (showToast) {
+          toast.success('Account created successfully! Please check your email to verify your account.');
+        }
         return { success: true };
       } else {
-        toast.error('Please enter a valid email address.');
-        return { success: false };
+        const errorMsg = 'Please enter a valid email address.';
+        if (showToast) toast.error(errorMsg);
+        return { success: false, error: errorMsg };
       }
     } catch (error) {
       console.error('Registration error:', error);
@@ -163,7 +201,7 @@ export const AuthProvider = ({ children }) => {
           errorMessage = 'Please enter a valid email address.';
           break;
         case 'auth/weak-password':
-          errorMessage = 'Password must be at least 6 characters long.';
+          errorMessage = 'Password is too weak. Please choose a stronger password with at least 8 characters.';
           break;
         case 'auth/network-request-failed':
           errorMessage = 'Network error. Please check your connection and try again.';
@@ -171,10 +209,15 @@ export const AuthProvider = ({ children }) => {
         case 'auth/too-many-requests':
           errorMessage = 'Too many attempts. Please try again later.';
           break;
+        default:
+          errorMessage = 'Registration failed. Please check your information and try again.';
+          break;
       }
       
-      toast.error(errorMessage);
-      return { success: false };
+      if (showToast) {
+        toast.error(errorMessage);
+      }
+      return { success: false, error: errorMessage };
     }
   };
 
@@ -276,29 +319,87 @@ export const AuthProvider = ({ children }) => {
 
   const sendPasswordReset = async (email) => {
     try {
-              // Use Firebase's built-in password reset email with custom action settings
-        const actionCodeSettings = {
-          url: `${window.location.origin}/firebase-action`,
-          handleCodeInApp: true
-        };
+      console.log('Starting password reset for email:', email);
+      
+      // Check Firestore users collection directly (where your actual user data is stored)
+      console.log('Checking Firestore users collection for email:', email);
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('email', '==', email));
+      const querySnapshot = await getDocs(q);
+      
+      console.log('Firestore query completed. Found documents:', querySnapshot.size);
+      
+      if (querySnapshot.empty) {
+        console.log('Email not found in Firestore users database');
+        return false; // Email not registered
+      }
+      
+      // Check if the email is verified
+      const userDoc = querySnapshot.docs[0];
+      const userData = userDoc.data();
+      console.log('User data found:', {
+        email: userData.email,
+        emailVerified: userData.emailVerified,
+        firstName: userData.firstName
+      });
+      
+      if (!userData.emailVerified) {
+        console.log('Email exists but not verified');
+        return false; // Email not verified = not registered
+      }
+      
+      console.log('Email exists and is verified in Firestore, checking Firebase Auth...');
+      
+      // Verify user also exists in Firebase Auth
+      const signInMethods = await fetchSignInMethodsForEmail(auth, email);
+      console.log('Firebase Auth check - Sign-in methods:', signInMethods);
+      console.log('Sign-in methods type:', typeof signInMethods);
+      console.log('Sign-in methods length:', signInMethods.length);
+      
+      if (signInMethods.length === 0) {
+        console.log('fetchSignInMethodsForEmail returned empty array');
+        console.log('This might be due to:');
+        console.log('1. User email not verified in Firebase Auth');
+        console.log('2. User account disabled');
+        console.log('3. Firebase security settings');
         
-        await sendPasswordResetEmail(auth, email, actionCodeSettings);
-        toast.success('Password reset email sent! Please check your inbox.');
+        // Let's try sending the reset email anyway and see what happens
+        console.log('Attempting to send reset email despite empty sign-in methods...');
+      } else {
+        console.log('User has sign-in methods, proceeding normally');
+      }
+      
+      console.log('Proceeding to send password reset email...');
+      
+      // User exists in both systems, proceed with sending reset email
+      const actionCodeSettings = {
+        url: `${window.location.origin}/firebase-action`,
+        handleCodeInApp: true
+      };
+      
+      await sendPasswordResetEmail(auth, email, actionCodeSettings);
+      console.log('Password reset email sent successfully');
+      toast.success('Password reset email sent! Please check your inbox.');
       return true;
     } catch (error) {
       console.error('Error sending password reset email:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      
       let errorMessage = 'Failed to send password reset email. Please try again.';
       
       switch (error.code) {
         case 'auth/user-not-found':
-          errorMessage = 'No account found with this email address.';
-          break;
+          console.log('User not found - returning false for UI handling');
+          return false; // This will trigger "Email Not Registered" UI
         case 'auth/invalid-email':
           errorMessage = 'Invalid email address.';
           break;
         case 'auth/too-many-requests':
           errorMessage = 'Too many attempts. Please try again later.';
           break;
+        default:
+          console.log('Unknown error, treating as generic failure');
       }
       
       toast.error(errorMessage);
