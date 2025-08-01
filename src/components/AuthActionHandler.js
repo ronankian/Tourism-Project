@@ -19,6 +19,11 @@ const AuthActionHandler = () => {
         return;
       }
       
+      // Skip password reset handling entirely - let FirebaseActionRedirect handle it
+      if (mode === 'resetPassword') {
+        return;
+      }
+      
       // Check if this is an email verification link (for handleCodeInApp)
       if (isSignInWithEmailLink(auth, window.location.href)) {
         // Let FirebaseActionRedirect handle this instead
@@ -36,9 +41,8 @@ const AuthActionHandler = () => {
             return;
             
           case 'resetPassword':
-            // Redirect to new password page with the reset code
-            navigate(`/new-password?mode=${mode}&oobCode=${oobCode}`);
-            break;
+            // This case should never be reached due to early return above
+            return;
             
           case 'recoverEmail':
             // Handle email recovery (if needed in the future)

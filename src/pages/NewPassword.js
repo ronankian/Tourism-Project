@@ -27,34 +27,48 @@ const NewPassword = () => {
 
   useEffect(() => {
     const validateResetCode = async () => {
+      console.log('NewPassword: Starting validation with oobCode:', oobCode, 'mode:', mode);
+      
       if (!oobCode || mode !== 'resetPassword') {
+        console.log('NewPassword: Missing oobCode or wrong mode - oobCode:', oobCode, 'mode:', mode);
         toast.error('Invalid password reset link.');
         navigate('/reset-password');
         return;
       }
 
       try {
+        console.log('NewPassword: About to call verifyPasswordResetCode');
         // Verify the password reset code and get the email
         const userEmail = await verifyPasswordResetCode(auth, oobCode);
+        console.log('NewPassword: verifyPasswordResetCode successful, email:', userEmail);
         setEmail(userEmail);
         setCodeValid(true);
         toast.success('Password reset link verified. Please enter your new password.');
       } catch (error) {
-        console.error('Error verifying reset code:', error);
+        console.error('NewPassword: Error verifying reset code:', error);
+        console.error('NewPassword: Error code:', error.code);
+        console.error('NewPassword: Error message:', error.message);
+        console.error('NewPassword: OobCode that failed:', oobCode);
+        
         let errorMessage = 'Invalid or expired password reset link.';
         
         switch (error.code) {
           case 'auth/invalid-action-code':
             errorMessage = 'Invalid password reset link.';
+            console.log('NewPassword: Code was invalid - possibly already used');
             break;
           case 'auth/expired-action-code':
             errorMessage = 'Password reset link has expired.';
+            console.log('NewPassword: Code has expired');
             break;
           case 'auth/user-disabled':
             errorMessage = 'This account has been disabled.';
             break;
           case 'auth/user-not-found':
             errorMessage = 'No account found for this reset link.';
+            break;
+          default:
+            console.log('NewPassword: Unknown error code:', error.code);
             break;
         }
         

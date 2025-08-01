@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { applyActionCode, verifyPasswordResetCode } from 'firebase/auth';
+import { applyActionCode } from 'firebase/auth';
 import { auth } from '../firebase';
 
 import toast from 'react-hot-toast';
@@ -28,22 +28,45 @@ const FirebaseActionRedirect = () => {
     
     // Process the action in background
     const processAction = async () => {
+      // Handle password reset separately (no try-catch needed)
+      if (mode === 'resetPassword') {
+        // Don't verify the code here - let NewPassword page handle it
+        // to avoid consuming the one-time-use code
+        console.log('Password reset code received, redirecting to new password page');
+        setActionSuccess(true);
+        setReady(true);
+        return;
+      }
+      
+      // Handle email verification with try-catch
       try {
         if (mode === 'verifyEmail') {
+          console.log('Starting email verification with oobCode:', oobCode);
+          console.log('Firebase auth object:', auth);
+          console.log('Current user before verification:', auth.currentUser);
+          
+          // For email verification, we should attempt verification even if not logged in
+          // The applyActionCode should work for email verification without requiring login
+          console.log('Attempting email verification without login requirement');
+          
           await applyActionCode(auth, oobCode);
           console.log('Email verification successful');
+          
+          // Check if user is now verified
+          await auth.currentUser.reload();
+          console.log('User email verified status after applyActionCode:', auth.currentUser.emailVerified);
+          
           setActionSuccess(true);
-        } else if (mode === 'resetPassword') {
-          await verifyPasswordResetCode(auth, oobCode);
-          console.log('Password reset code verified');
-          setActionSuccess(true);
+          setReady(true);
         }
-        setReady(true);
       } catch (error) {
         console.error('Error processing Firebase action:', error);
         console.error('Error code:', error.code);
         console.error('Error message:', error.message);
         console.error('Full error object:', error);
+        console.error('Mode was:', mode);
+        console.error('OobCode was:', oobCode);
+        console.error('Current user during error:', auth.currentUser);
         
         setActionSuccess(false);
 
@@ -161,7 +184,7 @@ const FirebaseActionRedirect = () => {
                       Invalid Verification Link
                     </h2>
                     <p className="text-gray-600 mb-6">
-                      This email verification link is invalid or has expired. Please try signing in or request a new verification email.
+                      This email verification link is invalid, has expired, or has already been used. Please request a new verification email.
                     </p>
                     
                     <button
