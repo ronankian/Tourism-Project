@@ -3,12 +3,13 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { ArrowLeft, Mail } from 'lucide-react';
+import CountdownTimer from '../components/CountdownTimer';
 import toast from 'react-hot-toast';
 
 const Verification = () => {
   const [loading, setLoading] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
-  const { resendEmailVerification, checkEmailVerification } = useAuth();
+  const { resendEmailVerification, checkEmailVerification, emailVerificationTimer } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -165,13 +166,14 @@ const Verification = () => {
                     Didn't receive the email?
                   </p>
                   
-                  <button
-                    onClick={handleResendEmail}
-                    disabled={loading}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {loading ? 'Sending...' : 'Resend Verification Email'}
-                  </button>
+                  <CountdownTimer
+                    seconds={60}
+                    onStart={handleResendEmail}
+                    isActive={emailVerificationTimer}
+                    buttonText="Resend Verification Email"
+                    disabledText="Resend in"
+                    className="w-full"
+                  />
                 </div>
               </div>
             )}

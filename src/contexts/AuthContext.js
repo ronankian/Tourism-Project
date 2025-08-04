@@ -33,6 +33,8 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [emailVerificationTimer, setEmailVerificationTimer] = useState(false);
+  const [passwordResetTimer, setPasswordResetTimer] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -180,6 +182,12 @@ export const AuthProvider = ({ children }) => {
         
         await sendEmailVerification(firebaseUser, actionCodeSettings);
 
+        // Start the 60-second timer for the initial verification email
+        setEmailVerificationTimer(true);
+        setTimeout(() => {
+          setEmailVerificationTimer(false);
+        }, 60000);
+
         if (showToast) {
           toast.success('Account created successfully! Please check your email to verify your account.');
         }
@@ -282,6 +290,13 @@ export const AuthProvider = ({ children }) => {
       
       await sendEmailVerification(currentUser, actionCodeSettings);
       toast.success('Verification email sent! Please check your inbox.');
+      
+      // Start the 60-second timer
+      setEmailVerificationTimer(true);
+      setTimeout(() => {
+        setEmailVerificationTimer(false);
+      }, 60000);
+      
       return true;
     } catch (error) {
       console.error('Error sending verification email:', error);
@@ -380,6 +395,13 @@ export const AuthProvider = ({ children }) => {
       await sendPasswordResetEmail(auth, email, actionCodeSettings);
       console.log('Password reset email sent successfully');
       toast.success('Password reset email sent! Please check your inbox.');
+      
+      // Start the 60-second timer
+      setPasswordResetTimer(true);
+      setTimeout(() => {
+        setPasswordResetTimer(false);
+      }, 60000);
+      
       return true;
     } catch (error) {
       console.error('Error sending password reset email:', error);
@@ -471,6 +493,8 @@ export const AuthProvider = ({ children }) => {
     checkEmailVerification,
     sendPasswordReset,
     deleteUserAccount,
+    emailVerificationTimer,
+    passwordResetTimer,
     isAuthenticated: !!user,
     isAdmin: user?.role === 'admin',
     isOperator: user?.role === 'operator',
