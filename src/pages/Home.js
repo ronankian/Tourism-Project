@@ -11,11 +11,11 @@ const Home = () => {
         <div className="relative z-10 text-center text-white px-4">
           <h1 className="text-5xl md:text-7xl font-bold mb-6">
             Welcome to
-            <span className="block text-yellow-300">Rosario, Cavite</span>
+            <span className="block text-yellow-300">Casa Hacienda de Tejeros</span>
           </h1>
           
           <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto">
-            Discover the beauty, culture, and heritage of our beloved town. 
+            Discover the beauty, culture, and heritage of this historic site in Rosario, Cavite. 
             Experience authentic Filipino hospitality and create unforgettable memories.
           </p>
           
@@ -35,7 +35,7 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Discover Rosario Tourism
+              Discover Casa Hacienda de Tejeros
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
               Experience the rich culture and beautiful destinations of Rosario, Cavite
@@ -45,7 +45,7 @@ const Home = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="text-center p-6">
               <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <span className="text-2xl">🏛️</span>
+                <img src="/images/rtc.png" alt="Casa Hacienda de Tejeros" className="w-8 h-8 object-contain" />
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-4">Historical Sites</h3>
               <p className="text-gray-600">

@@ -220,7 +220,7 @@ The church is not only a place of worship but also serves as a cultural center, 
                 <MapPin className="w-5 h-5 text-primary-600 mt-1" />
                 <div>
                   <p className="font-medium text-gray-900">{destination.location}</p>
-                  <p className="text-gray-600">Rosario, Cavite, Philippines</p>
+                  <p className="text-gray-600">Rosario, Cavite</p>
                 </div>
               </div>
             </motion.div>
@@ -233,7 +233,7 @@ The church is not only a place of worship but also serves as a cultural center, 
               className="bg-gradient-primary rounded-lg p-6 text-white"
             >
               <h3 className="text-xl font-bold mb-4">Ready to Visit?</h3>
-              <p className="mb-6">Book your tour to {destination.name} and experience the beauty of Rosario, Cavite.</p>
+              <p className="mb-6">Book your tour to {destination.name} and experience the beauty of Casa Hacienda de Tejeros in Rosario, Cavite.</p>
               <Link to="/booking" className="btn-secondary w-full text-center">
                 Book Now
               </Link>

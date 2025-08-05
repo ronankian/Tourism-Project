@@ -19,16 +19,16 @@ const Footer = () => {
           {/* Company Info */}
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <span className="text-white text-lg">🏛️</span>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center">
+                <img src="/images/rtc.png" alt="Casa Hacienda de Tejeros" className="w-8 h-8 object-contain" />
               </div>
               <div>
-                <h3 className="text-lg font-bold">Rosario Tourism</h3>
-                <p className="text-sm text-gray-400">Cavite, Philippines</p>
+                <h3 className="text-lg font-bold">Casa Hacienda de Tejeros</h3>
+                <p className="text-sm text-gray-400">Rosario, Cavite</p>
               </div>
             </div>
             <p className="text-gray-400 text-sm leading-relaxed">
-              Discover the beauty, culture, and heritage of Rosario, Cavite. 
+              Discover the beauty, culture, and heritage of Casa Hacienda de Tejeros in Rosario, Cavite. 
               Experience authentic Filipino hospitality and explore our amazing destinations.
             </p>
           </div>
@@ -84,8 +84,8 @@ const Footer = () => {
               <div className="flex items-center space-x-3">
                 <span className="text-blue-400">📍</span>
                 <div>
-                  <p className="text-sm text-gray-400">Municipality of Rosario</p>
-                  <p className="text-sm text-gray-400">Cavite, Philippines</p>
+                  <p className="text-sm text-gray-400">Casa Hacienda de Tejeros</p>
+                  <p className="text-sm text-gray-400">Rosario, Cavite</p>
                 </div>
               </div>
               <div className="flex items-center space-x-3">
@@ -104,7 +104,7 @@ const Footer = () => {
         <div className="border-t border-gray-800 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
             <p className="text-gray-400 text-sm">
-              © {currentYear} Rosario Tourism. All rights reserved.
+              © {currentYear} Casa Hacienda de Tejeros. All rights reserved.
             </p>
             <div className="flex space-x-6 text-sm">
               <Link to="/privacy" className="text-gray-400 hover:text-white transition-colors duration-200">

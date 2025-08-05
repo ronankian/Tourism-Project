@@ -21,7 +21,7 @@ const About = () => {
             transition={{ duration: 0.8 }}
             className="text-5xl font-bold mb-6"
           >
-            About Rosario, Cavite
+            About Casa Hacienda de Tejeros
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 30 }}
@@ -29,7 +29,7 @@ const About = () => {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="text-xl max-w-3xl mx-auto"
           >
-            Discover the rich history, vibrant culture, and natural beauty of our beloved municipality
+            Discover the rich history, vibrant culture, and natural beauty of this historic hacienda in Rosario, Cavite
           </motion.p>
         </div>
       </section>
@@ -68,8 +68,8 @@ const About = () => {
             >
               <h2 className="text-4xl font-bold text-gray-900 mb-6">Our Rich History</h2>
               <p className="text-lg text-gray-600 mb-6">
-                Rosario, officially the Municipality of Rosario, is a 1st class municipality in the province of Cavite, Philippines. 
-                According to the 2020 census, it has a population of 110,807 people.
+                Casa Hacienda de Tejeros is a historic site located in Rosario, Cavite. 
+                This significant heritage location played an important role in Philippine history.
               </p>
               <p className="text-lg text-gray-600 mb-6">
                 The town was established during the Spanish colonial period and has since grown into a vibrant community 
@@ -114,8 +114,8 @@ const About = () => {
             >
               <h3 className="text-2xl font-bold text-gray-900 mb-4">Our Mission</h3>
               <p className="text-gray-600">
-                To promote Rosario as a premier tourist destination by showcasing our rich cultural heritage, 
-                natural attractions, and warm Filipino hospitality while ensuring sustainable development 
+                To promote Casa Hacienda de Tejeros as a premier heritage destination by showcasing our rich cultural heritage, 
+                historical significance, and warm Filipino hospitality while ensuring sustainable development 
                 and community involvement.
               </p>
             </motion.div>
@@ -128,8 +128,8 @@ const About = () => {
             >
               <h3 className="text-2xl font-bold text-gray-900 mb-4">Our Vision</h3>
               <p className="text-gray-600">
-                To become the leading tourism destination in Cavite, known for authentic cultural experiences, 
-                pristine natural beauty, and exceptional visitor satisfaction, while preserving our heritage 
+                To become the leading heritage tourism destination in Cavite, known for authentic historical experiences, 
+                cultural significance, and exceptional visitor satisfaction, while preserving our heritage 
                 for future generations.
               </p>
             </motion.div>
@@ -192,9 +192,9 @@ const About = () => {
       {/* Contact CTA */}
       <section className="section-padding bg-gradient-primary text-white">
         <div className="container-custom text-center">
-          <h2 className="text-4xl font-bold mb-6">Ready to Explore Rosario?</h2>
+          <h2 className="text-4xl font-bold mb-6">Ready to Explore Casa Hacienda de Tejeros?</h2>
           <p className="text-xl mb-8 max-w-2xl mx-auto">
-            Contact our tourism team to plan your perfect visit to Rosario, Cavite
+            Contact our team to plan your perfect visit to Casa Hacienda de Tejeros in Rosario, Cavite
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button className="bg-white text-primary-600 hover:bg-gray-100 font-medium py-3 px-8 rounded-lg transition-colors duration-200 text-lg">

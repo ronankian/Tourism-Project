@@ -22,12 +22,12 @@ const Navbar = () => {
         <div className="flex justify-between items-center py-4">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
-            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white text-xl">🏛️</span>
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center">
+              <img src="/images/rtc.png" alt="Casa Hacienda de Tejeros" className="w-10 h-10 object-contain" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Rosario Tourism</h1>
-              <p className="text-xs text-gray-600">Cavite, Philippines</p>
+              <h1 className="text-xl font-bold text-gray-900">Casa Hacienda de Tejeros</h1>
+              <p className="text-xs text-gray-600">Rosario, Cavite</p>
             </div>
           </Link>
 

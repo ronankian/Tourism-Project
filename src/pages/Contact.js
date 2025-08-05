@@ -122,7 +122,7 @@ const Contact = () => {
             <div>
               <h2 className="text-3xl font-bold text-gray-900 mb-6">Get in Touch</h2>
               <p className="text-lg text-gray-600 mb-8">
-                Our tourism team is here to help you plan the perfect visit to Rosario, Cavite. 
+                Our team is here to help you plan the perfect visit to Casa Hacienda de Tejeros in Rosario, Cavite. 
                 Feel free to reach out with any questions or special requests.
               </p>
             </div>
@@ -135,8 +135,8 @@ const Contact = () => {
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Visit Us</h3>
                   <p className="text-gray-600">
-                    Municipality of Rosario<br />
-                    Cavite, Philippines<br />
+                    Casa Hacienda de Tejeros<br />
+                    Rosario, Cavite<br />
                     4106
                   </p>
                 </div>
