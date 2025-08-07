@@ -82,18 +82,18 @@ const Footer = () => {
             <h4 className="text-lg font-semibold">Contact Us</h4>
             <div className="space-y-3">
               <div className="flex items-center space-x-3">
-                <span className="text-blue-400">📍</span>
+                <span className="text-[#5d9c59]">📍</span>
                 <div>
                   <p className="text-sm text-gray-400">Casa Hacienda de Tejeros</p>
                   <p className="text-sm text-gray-400">Rosario, Cavite</p>
                 </div>
               </div>
               <div className="flex items-center space-x-3">
-                <span className="text-blue-400">📞</span>
+                <span className="text-[#5d9c59]">📞</span>
                 <p className="text-sm text-gray-400">+63 46 123 4567</p>
               </div>
               <div className="flex items-center space-x-3">
-                <span className="text-blue-400">✉️</span>
+                <span className="text-[#5d9c59]">✉️</span>
                 <p className="text-sm text-gray-400">tourism@rosario.gov.ph</p>
               </div>
             </div>

@@ -183,7 +183,7 @@ const FirebaseActionRedirect = () => {
                     
                     <button
                       onClick={() => navigate('/login')}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200"
+                      className="w-full bg-[#5d9c59] hover:bg-[#4a7c47] text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200"
                     >
                       Back to Login
                     </button>
@@ -192,7 +192,7 @@ const FirebaseActionRedirect = () => {
               ) : actionType === 'resetPassword' ? (
                 actionSuccess ? (
                   <>
-                    <h2 className="text-2xl font-bold text-blue-600 mb-4">
+                    <h2 className="text-2xl font-bold text-[#df2e38] mb-4">
                       Password Reset
                     </h2>
                     <p className="text-gray-600 mb-6">
@@ -201,7 +201,7 @@ const FirebaseActionRedirect = () => {
                     
                     <button
                       onClick={handlePasswordResetProceed}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200"
+                      className="w-full bg-[#5d9c59] hover:bg-[#4a7c47] text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200"
                     >
                       Set New Password
                     </button>
@@ -222,7 +222,7 @@ const FirebaseActionRedirect = () => {
                     
                     <button
                       onClick={() => navigate('/reset-password')}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200"
+                      className="w-full bg-[#5d9c59] hover:bg-[#4a7c47] text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200"
                     >
                       Request New Reset Link
                     </button>
@@ -239,7 +239,7 @@ const FirebaseActionRedirect = () => {
                   
                   <button
                     onClick={() => navigate('/')}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200"
+                    className="w-full bg-[#5d9c59] hover:bg-[#4a7c47] text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200"
                   >
                     Go to Home
                   </button>

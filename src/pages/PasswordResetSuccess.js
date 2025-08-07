@@ -88,7 +88,7 @@ const PasswordResetSuccess = () => {
 
               <Link
                 to="/login"
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 inline-block text-center"
+                className="w-full bg-[#5d9c59] hover:bg-[#4a7c47] text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 inline-block text-center"
               >
                 Sign In with New Password
               </Link>
@@ -97,7 +97,7 @@ const PasswordResetSuccess = () => {
             <div className="mt-8 text-center">
               <p className="text-gray-600">
                 Need help?{' '}
-                <Link to="/" className="font-medium text-blue-600 hover:text-blue-500">
+                <Link to="/" className="font-medium text-[#df2e38] hover:text-[#c62828]">
                   Contact support
                 </Link>
               </p>

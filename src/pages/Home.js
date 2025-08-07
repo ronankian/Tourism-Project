@@ -20,10 +20,10 @@ const Home = () => {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/destinations" className="bg-white text-blue-600 hover:bg-gray-100 font-medium py-3 px-8 rounded-lg transition-colors duration-200 text-lg">
+            <Link to="/destinations" className="bg-white text-[#5d9c59] hover:bg-gray-100 font-medium py-3 px-8 rounded-lg transition-colors duration-200 text-lg">
               Explore Destinations
             </Link>
-            <Link to="/booking" className="border-2 border-white text-white hover:bg-white hover:text-blue-600 font-medium py-3 px-8 rounded-lg transition-colors duration-200 text-lg">
+            <Link to="/booking" className="border-2 border-white text-white hover:bg-white hover:text-[#5d9c59] font-medium py-3 px-8 rounded-lg transition-colors duration-200 text-lg">
               Book Now
             </Link>
           </div>
@@ -44,7 +44,7 @@ const Home = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="text-center p-6">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <div className="w-16 h-16 bg-[#5d9c59] bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-6">
                 <img src="/images/rtc.png" alt="Casa Hacienda de Tejeros" className="w-8 h-8 object-contain" />
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-4">Historical Sites</h3>
@@ -54,7 +54,7 @@ const Home = () => {
             </div>
             
             <div className="text-center p-6">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <div className="w-16 h-16 bg-[#5d9c59] bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-6">
                 <span className="text-2xl">🏖️</span>
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-4">Natural Beauty</h3>
@@ -64,7 +64,7 @@ const Home = () => {
             </div>
             
             <div className="text-center p-6">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <div className="w-16 h-16 bg-[#5d9c59] bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-6">
                 <span className="text-2xl">🍽️</span>
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-4">Local Cuisine</h3>
@@ -86,10 +86,10 @@ const Home = () => {
             Book your tour today and experience the beauty and culture of Rosario, Cavite
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/booking" className="bg-blue-600 text-white hover:bg-blue-700 font-medium py-3 px-8 rounded-lg transition-colors duration-200 text-lg">
+            <Link to="/booking" className="bg-[#5d9c59] text-white hover:bg-[#4a7c47] font-medium py-3 px-8 rounded-lg transition-colors duration-200 text-lg">
               Book Now
             </Link>
-            <Link to="/contact" className="border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white font-medium py-3 px-8 rounded-lg transition-colors duration-200 text-lg">
+            <Link to="/contact" className="border-2 border-[#5d9c59] text-[#5d9c59] hover:bg-[#5d9c59] hover:text-white font-medium py-3 px-8 rounded-lg transition-colors duration-200 text-lg">
               Contact Us
             </Link>
           </div>

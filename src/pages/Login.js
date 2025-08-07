@@ -144,7 +144,7 @@ const Login = () => {
                       ? '-top-2 bg-white px-2 text-sm font-medium'
                       : 'top-1/2 transform -translate-y-1/2 text-gray-500'
                   } ${
-                    focusedField === 'email' ? 'text-blue-600' : 'text-gray-500'
+                    focusedField === 'email' ? 'text-[#df2e38]' : 'text-gray-500'
                   }`}
                 >
                   Email address
@@ -177,7 +177,7 @@ const Login = () => {
                       ? '-top-2 bg-white px-2 text-sm font-medium'
                       : 'top-1/2 transform -translate-y-1/2 text-gray-500'
                   } ${
-                    focusedField === 'password' ? 'text-blue-600' : 'text-gray-500'
+                    focusedField === 'password' ? 'text-[#df2e38]' : 'text-gray-500'
                   }`}
                 >
                   Password
@@ -210,7 +210,7 @@ const Login = () => {
 
             <div className="text-center space-y-2">
               <div>
-                <Link to="/reset-password" className="text-blue-600 hover:text-blue-500 font-medium">
+                <Link to="/reset-password" className="text-[#df2e38] hover:text-[#c62828] font-medium">
                   Forgot Password?
                 </Link>
               </div>
@@ -228,7 +228,7 @@ const Login = () => {
               <div>
                 <p className="text-gray-600">
                   Don't have an account?{' '}
-                  <Link to="/register" className="font-medium text-blue-600 hover:text-blue-500">
+                  <Link to="/register" className="font-medium text-[#df2e38] hover:text-[#c62828]">
                     Register here
                   </Link>
                 </p>

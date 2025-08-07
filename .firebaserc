@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "rosariotourismofficial"
-  }
-} 
+    "default": "rosariotourismofficial",
+    "npx firebase use casa-tejeros": "casa-hacienda-de-tejeros"
+  },
+  "targets": {},
+  "etags": {}
+}

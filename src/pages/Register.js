@@ -223,7 +223,7 @@ const Register = () => {
                     ? '-top-2 bg-white px-2 text-sm font-medium'
                     : 'top-1/2 transform -translate-y-1/2 text-gray-500'
                 } ${
-                  focusedField === 'firstName' ? 'text-blue-600' : 'text-gray-500'
+                  focusedField === 'firstName' ? 'text-[#df2e38]' : 'text-gray-500'
                 }`}
               >
                 First Name
@@ -249,7 +249,7 @@ const Register = () => {
                     ? '-top-2 bg-white px-2 text-sm font-medium'
                     : 'top-1/2 transform -translate-y-1/2 text-gray-500'
                 } ${
-                  focusedField === 'lastName' ? 'text-blue-600' : 'text-gray-500'
+                  focusedField === 'lastName' ? 'text-[#df2e38]' : 'text-gray-500'
                 }`}
               >
                 Last Name
@@ -276,7 +276,7 @@ const Register = () => {
                      ? '-top-2 bg-white px-2 text-sm font-medium'
                      : 'top-1/2 transform -translate-y-1/2 text-gray-500'
                  } ${
-                   focusedField === 'email' ? 'text-blue-600' : 'text-gray-500'
+                   focusedField === 'email' ? 'text-[#df2e38]' : 'text-gray-500'
                  }`}
                >
                  Email address
@@ -309,7 +309,7 @@ const Register = () => {
                     ? '-top-2 bg-white px-2 text-sm font-medium'
                     : 'top-1/2 transform -translate-y-1/2 text-gray-500'
                 } ${
-                  focusedField === 'password' ? 'text-blue-600' : 'text-gray-500'
+                  focusedField === 'password' ? 'text-[#df2e38]' : 'text-gray-500'
                 }`}
               >
                 Password
@@ -353,7 +353,7 @@ const Register = () => {
                     ? '-top-2 bg-white px-2 text-sm font-medium'
                     : 'top-1/2 transform -translate-y-1/2 text-gray-500'
                 } ${
-                  focusedField === 'confirmPassword' ? 'text-blue-600' : 'text-gray-500'
+                  focusedField === 'confirmPassword' ? 'text-[#df2e38]' : 'text-gray-500'
                 }`}
               >
                 Confirm Password
@@ -400,7 +400,7 @@ const Register = () => {
               
             <p className="text-gray-600">
               Already have an account?{' '}
-              <Link to="/login" className="font-medium text-blue-600 hover:text-blue-500">
+                              <Link to="/login" className="font-medium text-[#df2e38] hover:text-[#c62828]">
                 Sign in here
               </Link>
             </p>

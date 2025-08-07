@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Users, Clock, MapPin, Check } from 'lucide-react';
+import { Calendar, Users, Clock, MapPin, Check, Mail } from 'lucide-react';
+import { bookingService } from '../services/bookingService';
+import toast from 'react-hot-toast';
 
 const Booking = () => {
   const [selectedPackage, setSelectedPackage] = useState(null);
@@ -46,9 +48,40 @@ const Booking = () => {
     }
   ];
 
-  const handleSubmit = (e) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showVerificationMessage, setShowVerificationMessage] = useState(false);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Booking submitted:', { package: selectedPackage, ...bookingData });
+    
+    if (!selectedPackage) {
+      toast.error('Please select a tour package');
+      return;
+    }
+
+    setIsSubmitting(true);
+    
+    try {
+      const bookingDataToSubmit = {
+        ...bookingData,
+        packageName: selectedPackage.name,
+        packagePrice: selectedPackage.price,
+        packageDuration: selectedPackage.duration,
+        totalPrice: selectedPackage.price // You can calculate this based on guests
+      };
+
+      const result = await bookingService.createBooking(bookingDataToSubmit);
+      
+      if (result.success) {
+        setShowVerificationMessage(true);
+        toast.success('Booking submitted successfully! Please check your email for verification.');
+      }
+    } catch (error) {
+      console.error('Error submitting booking:', error);
+      toast.error('Failed to submit booking. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -269,13 +302,27 @@ const Booking = () => {
                   </div>
                 )}
 
-                <button
-                  type="submit"
-                  disabled={!selectedPackage}
-                  className="w-full btn-primary py-3 text-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Book Now
-                </button>
+                {showVerificationMessage ? (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                    <Mail className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                    <h3 className="text-lg font-semibold text-green-800 mb-2">Check Your Email</h3>
+                    <p className="text-green-700 mb-4">
+                      We've sent a verification email to <strong>{bookingData.email}</strong>. 
+                      Please click the verification link to confirm your booking.
+                    </p>
+                    <p className="text-sm text-green-600">
+                      If you don't see the email, check your spam folder.
+                    </p>
+                  </div>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={!selectedPackage || isSubmitting}
+                    className="w-full btn-primary py-3 text-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting ? 'Submitting...' : 'Book Now'}
+                  </button>
+                )}
               </form>
             </motion.div>
           </div>

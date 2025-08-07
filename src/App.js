@@ -2,6 +2,8 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
+import Header from './components/Header';
+import WebsiteBanner from './components/WebsiteBanner';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import AuthActionHandler from './components/AuthActionHandler';
@@ -9,6 +11,7 @@ import Home from './pages/Home';
 import Destinations from './pages/Destinations';
 import DestinationDetail from './pages/DestinationDetail';
 import Booking from './pages/Booking';
+import News from './pages/News';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Verification from './pages/Verification';
@@ -18,6 +21,7 @@ import NewPassword from './pages/NewPassword';
 import PasswordResetSuccess from './pages/PasswordResetSuccess';
 import FirebaseActionRedirect from './pages/FirebaseActionRedirect';
 import Dashboard from './pages/Dashboard';
+import AdminDashboard from './components/AdminDashboard';
 import About from './pages/About';
 import Contact from './pages/Contact';
 
@@ -41,6 +45,8 @@ function App() {
           {/* Main website routes - with navbar/footer */}
           <Route path="/" element={
             <div className="min-h-screen bg-gray-50">
+              <Header />
+              <WebsiteBanner />
               <Navbar />
               <main>
                 <Home />
@@ -50,6 +56,8 @@ function App() {
           } />
           <Route path="/destinations" element={
             <div className="min-h-screen bg-gray-50">
+              <Header />
+              <WebsiteBanner />
               <Navbar />
               <main>
                 <Destinations />
@@ -59,6 +67,8 @@ function App() {
           } />
           <Route path="/destinations/:id" element={
             <div className="min-h-screen bg-gray-50">
+              <Header />
+              <WebsiteBanner />
               <Navbar />
               <main>
                 <DestinationDetail />
@@ -66,8 +76,21 @@ function App() {
               <Footer />
             </div>
           } />
+          <Route path="/news" element={
+            <div className="min-h-screen bg-gray-50">
+              <Header />
+              <WebsiteBanner />
+              <Navbar />
+              <main>
+                <News />
+              </main>
+              <Footer />
+            </div>
+          } />
           <Route path="/booking" element={
             <div className="min-h-screen bg-gray-50">
+              <Header />
+              <WebsiteBanner />
               <Navbar />
               <main>
                 <Booking />
@@ -77,6 +100,8 @@ function App() {
           } />
           <Route path="/dashboard" element={
             <div className="min-h-screen bg-gray-50">
+              <Header />
+              <WebsiteBanner />
               <Navbar />
               <main>
                 <Dashboard />
@@ -84,8 +109,21 @@ function App() {
               <Footer />
             </div>
           } />
+          <Route path="/admin" element={
+            <div className="min-h-screen bg-gray-50">
+              <Header />
+              <WebsiteBanner />
+              <Navbar />
+              <main>
+                <AdminDashboard />
+              </main>
+              <Footer />
+            </div>
+          } />
           <Route path="/about" element={
             <div className="min-h-screen bg-gray-50">
+              <Header />
+              <WebsiteBanner />
               <Navbar />
               <main>
                 <About />
@@ -95,6 +133,8 @@ function App() {
           } />
           <Route path="/contact" element={
             <div className="min-h-screen bg-gray-50">
+              <Header />
+              <WebsiteBanner />
               <Navbar />
               <main>
                 <Contact />

@@ -217,7 +217,7 @@ const NewPassword = () => {
         <div className="max-w-md w-full space-y-8 relative z-10">
           <div className="bg-white rounded-xl shadow-2xl p-8 text-center">
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#df2e38]"></div>
             </div>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
               Validating Reset Link
@@ -259,7 +259,7 @@ const NewPassword = () => {
             </p>
             <Link
               to="/reset-password"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 inline-block"
+                              className="w-full bg-[#5d9c59] hover:bg-[#4a7c47] text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 inline-block"
             >
               Request New Reset Link
             </Link>
@@ -339,8 +339,8 @@ const NewPassword = () => {
                 </div>
               ) : (
                 <>
-                  <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                    <Lock className="w-8 h-8 text-blue-600" />
+                  <div className="mx-auto w-16 h-16 bg-[#5d9c59] bg-opacity-20 rounded-full flex items-center justify-center mb-4">
+                    <Lock className="w-8 h-8 text-[#df2e38]" />
                   </div>
                   <h2 className="text-3xl font-bold text-gray-900 mb-2">
                     Set New Password
@@ -348,7 +348,7 @@ const NewPassword = () => {
                   <p className="text-gray-600 mb-6">
                     Enter your new password for
                   </p>
-                  <p className="text-blue-600 font-medium mb-6">{email}</p>
+                  <p className="text-[#df2e38] font-medium mb-6">{email}</p>
                 </>
               )}
             </div>
@@ -369,7 +369,7 @@ const NewPassword = () => {
                 
                 <Link
                   to="/login"
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 inline-block text-center"
+                  className="w-full bg-[#5d9c59] hover:bg-[#4a7c47] text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 inline-block text-center"
                 >
                   Sign In Now
                 </Link>
@@ -398,7 +398,7 @@ const NewPassword = () => {
                         ? '-top-2 bg-white px-2 text-sm font-medium'
                         : 'top-1/2 transform -translate-y-1/2 text-gray-500'
                     } ${
-                      focusedField === 'newPassword' ? 'text-blue-600' : 'text-gray-500'
+                      focusedField === 'newPassword' ? 'text-[#df2e38]' : 'text-gray-500'
                     }`}
                   >
                     New Password
@@ -434,7 +434,7 @@ const NewPassword = () => {
                         ? '-top-2 bg-white px-2 text-sm font-medium'
                         : 'top-1/2 transform -translate-y-1/2 text-gray-500'
                     } ${
-                      focusedField === 'confirmPassword' ? 'text-blue-600' : 'text-gray-500'
+                      focusedField === 'confirmPassword' ? 'text-[#df2e38]' : 'text-gray-500'
                     }`}
                   >
                     Confirm Password
@@ -454,7 +454,7 @@ const NewPassword = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-[#5d9c59] hover:bg-[#4a7c47] text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? 'Resetting Password...' : 'Reset Password'}
                 </button>
@@ -464,7 +464,7 @@ const NewPassword = () => {
             <div className="mt-8 text-center">
               <p className="text-gray-600">
                 Remember your password?{' '}
-                <Link to="/login" className="font-medium text-blue-600 hover:text-blue-500">
+                <Link to="/login" className="font-medium text-[#df2e38] hover:text-[#c62828]">
                   Sign in here
                 </Link>
               </p>
