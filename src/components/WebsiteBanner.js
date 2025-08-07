@@ -1,6 +1,13 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const WebsiteBanner = () => {
+  const navigate = useNavigate();
+
+  const handleLogoClick = () => {
+    navigate('/');
+  };
+
   return (
     <div 
       className="relative w-full h-48 bg-cover bg-center bg-no-repeat"
@@ -14,7 +21,8 @@ const WebsiteBanner = () => {
         <img 
           src="/images/webtitle.png" 
           alt="Casa Hacienda de Tejeros Tourism Office" 
-          className="max-h-32 max-w-full object-contain"
+          className="max-h-32 max-w-full object-contain cursor-pointer hover:opacity-80 transition-opacity duration-200"
+          onClick={handleLogoClick}
         />
       </div>
     </div>
