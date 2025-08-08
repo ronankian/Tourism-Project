@@ -10,8 +10,6 @@ import {
   sendEmailVerification,
   sendPasswordResetEmail,
   fetchSignInMethodsForEmail,
-  verifyPasswordResetCode,
-  confirmPasswordReset,
   deleteUser,
   reauthenticateWithCredential,
   EmailAuthProvider
@@ -35,6 +33,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [emailVerificationTimer, setEmailVerificationTimer] = useState(false);
   const [passwordResetTimer, setPasswordResetTimer] = useState(false);
+  const [adminAuthenticated, setAdminAuthenticated] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -92,7 +91,7 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: errorMsg };
       }
       
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(auth, email, password);
       console.log('Login successful');
       
       if (showToast) {
@@ -238,6 +237,40 @@ export const AuthProvider = ({ children }) => {
       console.error('Logout error:', error);
       toast.error('Error logging out. Please try again.');
     }
+  };
+
+  // Admin passkey-only authentication (no username/email)
+  const adminLoginWithPasskey = (passkey) => {
+    const VALID_PASSKEY = 'Casahacienda1897';
+    if (passkey !== VALID_PASSKEY) {
+      toast.error('Invalid passkey');
+      return false;
+    }
+    // Optionally sign into Firebase using admin email so Firestore can be accessed
+    const adminEmail = process.env.REACT_APP_ADMIN_EMAIL;
+    if (adminEmail) {
+      signInWithEmailAndPassword(auth, adminEmail, passkey)
+        .then(() => {
+          setAdminAuthenticated(true);
+          toast.success('Admin access granted');
+        })
+        .catch(() => {
+          // If Firebase sign-in fails, still set local admin state so UI can route,
+          // but Firestore operations requiring auth may be blocked by security rules.
+          setAdminAuthenticated(true);
+          toast.success('Admin access granted');
+        });
+    } else {
+      setAdminAuthenticated(true);
+      toast.success('Admin access granted');
+    }
+    return true;
+  };
+
+  const adminLogout = () => {
+    setAdminAuthenticated(false);
+    toast.success('Admin access removed');
+    navigate('/');
   };
 
   const updateUserProfile = async (userData) => {
@@ -473,6 +506,8 @@ export const AuthProvider = ({ children }) => {
         case 'auth/user-mismatch':
           errorMessage = 'User mismatch. Please try again.';
           break;
+        default:
+          break;
       }
       
       toast.error(errorMessage);
@@ -488,6 +523,8 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    adminLoginWithPasskey,
+    adminLogout,
     updateProfile: updateUserProfile,
     resendEmailVerification,
     checkEmailVerification,
@@ -498,6 +535,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated: !!user,
     isAdmin: user?.role === 'admin',
     isOperator: user?.role === 'operator',
+    isAdminAuthenticated: adminAuthenticated,
   };
 
   return (

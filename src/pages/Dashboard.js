@@ -18,7 +18,7 @@ const Dashboard = () => {
       time: '09:00 AM',
       status: 'Confirmed',
       guests: 2,
-      price: '₱200'
+      price: 'Free'
     },
     {
       id: 2,
@@ -27,7 +27,7 @@ const Dashboard = () => {
       time: '02:00 PM',
       status: 'Pending',
       guests: 4,
-      price: '₱400'
+      price: 'Free'
     }
   ];
 
@@ -35,7 +35,7 @@ const Dashboard = () => {
     { label: 'Total Bookings', value: '5', icon: Calendar },
     { label: 'Visited Places', value: '3', icon: MapPin },
     { label: 'Upcoming Tours', value: '2', icon: Clock },
-    { label: 'Total Spent', value: '₱1,200', icon: Users }
+    { label: 'Total Spent', value: '₱0', icon: Users }
   ];
 
   const handleDeleteAccount = async (e) => {

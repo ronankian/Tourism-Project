@@ -11,8 +11,6 @@ import {
   getDoc
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import { sendEmailVerification } from 'firebase/auth';
-import { auth } from '../firebase';
 
 export const bookingService = {
   // Create a new booking
@@ -20,45 +18,17 @@ export const bookingService = {
     try {
       const booking = {
         ...bookingData,
-        status: 'pending',
+        status: bookingData.status || 'pending',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        emailVerified: false
+        emailVerified: bookingData.emailVerified === true ? true : false
       };
 
       const docRef = await addDoc(collection(db, 'bookings'), booking);
       
-      // Send email verification
-      await this.sendVerificationEmail(bookingData.email, docRef.id);
-      
       return { success: true, bookingId: docRef.id };
     } catch (error) {
       console.error('Error creating booking:', error);
-      throw error;
-    }
-  },
-
-  // Send verification email
-  async sendVerificationEmail(email, bookingId) {
-    try {
-      // Create a temporary user for email verification
-      const tempUser = {
-        email: email,
-        emailVerified: false
-      };
-
-      // Send verification email using Firebase Auth
-      await sendEmailVerification(tempUser);
-      
-      // Store verification token in Firestore
-      await updateDoc(doc(db, 'bookings', bookingId), {
-        verificationSent: true,
-        verificationSentAt: serverTimestamp()
-      });
-
-      return true;
-    } catch (error) {
-      console.error('Error sending verification email:', error);
       throw error;
     }
   },

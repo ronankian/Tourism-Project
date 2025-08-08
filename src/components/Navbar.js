@@ -1,19 +1,25 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
-  const { user, logout, isAuthenticated } = useAuth();
+  const { isAdminAuthenticated } = useAuth();
 
-  const navigation = [
-    { name: 'Home', href: '/' },
-    { name: 'Tourism', href: '/destinations' },
-    { name: 'News', href: '/news' },
-    { name: 'About', href: '/about' },
-    { name: 'Book Now', href: '/booking' },
-  ];
+  const navigation = useMemo(() => {
+    const base = [
+      { name: 'Home', href: '/' },
+      { name: 'Tourism', href: '/destinations' },
+      { name: 'News', href: '/news' },
+      { name: 'About', href: '/about' },
+      { name: 'Book Now', href: '/booking' },
+    ];
+    if (isAdminAuthenticated) {
+      base.push({ name: 'Dashboard', href: '/admin' });
+    }
+    return base;
+  }, [isAdminAuthenticated]);
 
   const isActive = (path) => location.pathname === path;
 

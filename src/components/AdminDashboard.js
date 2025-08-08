@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { Calendar, Users, Clock, CheckCircle, XCircle, Eye, Mail } from 'lucide-react';
 import { bookingService } from '../services/bookingService';
 import toast from 'react-hot-toast';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const AdminDashboard = () => {
   const [bookings, setBookings] = useState([]);
@@ -11,6 +13,8 @@ const AdminDashboard = () => {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [adminNotes, setAdminNotes] = useState('');
+  const { adminLogout } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadBookings();
@@ -101,8 +105,22 @@ const AdminDashboard = () => {
       {/* Header */}
       <section className="bg-gradient-to-r from-[#5d9c59] to-[#4a7c47] text-white py-12">
         <div className="container-custom">
-          <h1 className="text-3xl font-bold mb-2">Admin Dashboard</h1>
-          <p className="text-white/80">Manage bookings and send email notifications</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">Admin Dashboard</h1>
+              <p className="text-white/80">Manage bookings and send email notifications</p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  adminLogout();
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 

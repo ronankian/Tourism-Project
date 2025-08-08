@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
 import Header from './components/Header';
@@ -13,8 +13,11 @@ import DestinationDetail from './pages/DestinationDetail';
 import Booking from './pages/Booking';
 import News from './pages/News';
 import Login from './pages/Login';
-import Register from './pages/Register';
+// Removed Register import as registration is disabled
+// import Register from './pages/Register';
+import AdminLogin from './pages/AdminLogin';
 import Verification from './pages/Verification';
+import { useAuth } from './contexts/AuthContext';
 
 import PasswordReset from './pages/PasswordReset';
 import NewPassword from './pages/NewPassword';
@@ -33,7 +36,10 @@ function App() {
         <Routes>
           {/* Authentication routes - without navbar/footer */}
           <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          {/* Registration disabled */}
+          {/* <Route path="/register" element={<Register />} /> */}
+          {/* Admin access route - passkey-only */}
+          <Route path="/admin-login" element={<AdminLogin />} />
           <Route path="/verification" element={<Verification />} />
 
           <Route path="/reset-password" element={<PasswordReset />} />
@@ -115,7 +121,8 @@ function App() {
               <WebsiteBanner />
               <Navbar />
               <main>
-                <AdminDashboard />
+                {/* Admin route is guarded inside AdminDashboardWrapper */}
+                <AdminDashboardWrapper />
               </main>
               <Footer />
             </div>
@@ -159,3 +166,19 @@ function App() {
 }
 
 export default App; 
+
+// Route guard wrapper for admin path that redirects to passkey login
+
+function AdminDashboardWrapper() {
+  const { isAdminAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isAdminAuthenticated) {
+      navigate('/admin-login', { replace: true });
+    }
+  }, [isAdminAuthenticated, navigate]);
+
+  if (!isAdminAuthenticated) return null;
+  return <AdminDashboard />;
+}

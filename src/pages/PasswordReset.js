@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { ArrowLeft, Mail } from 'lucide-react';
@@ -14,6 +14,23 @@ const PasswordReset = () => {
   const [focusedField, setFocusedField] = useState('');
   
   const { sendPasswordReset, passwordResetTimer } = useAuth();
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const prefill = searchParams.get('email');
+    const auto = searchParams.get('auto');
+    if (prefill) {
+      setEmail(prefill);
+      if (auto === '1') {
+        // Auto-send once when arriving with auto flag
+        setTimeout(() => {
+          handleSendReset();
+        }, 0);
+      }
+    }
+    // deliberately not including handleSendReset to avoid re-trigger on re-renders
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const handleSendReset = async () => {
     if (!email) {
@@ -187,12 +204,6 @@ const PasswordReset = () => {
                   >
                     Try Different Email
                   </button>
-                  <Link
-                    to="/register"
-                    className="flex-1 bg-[#5d9c59] hover:bg-[#4a7c47] text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 text-center"
-                  >
-                    Create Account
-                  </Link>
                 </div>
               </div>
             ) : (

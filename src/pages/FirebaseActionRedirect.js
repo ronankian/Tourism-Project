@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { applyActionCode } from 'firebase/auth';
+import { applyActionCode, isSignInWithEmailLink, signInWithEmailLink, signOut } from 'firebase/auth';
 import { auth } from '../firebase';
+import { bookingService } from '../services/bookingService';
 import toast from 'react-hot-toast';
 
 const FirebaseActionRedirect = () => {
@@ -18,6 +19,62 @@ const FirebaseActionRedirect = () => {
   useEffect(() => {
     console.log('FirebaseActionRedirect mounted with mode:', mode, 'oobCode:', oobCode);
     
+    // Handle email link sign-in for booking flow
+    if (isSignInWithEmailLink(auth, window.location.href)) {
+      const email = localStorage.getItem('pendingBookingEmail');
+      if (!email) {
+        setReady(true);
+        return;
+      }
+      (async () => {
+        try {
+          await signInWithEmailLink(auth, email, window.location.href);
+          // Finalize booking from draft
+          const draftRaw = localStorage.getItem('pendingBookingDraft');
+          if (draftRaw) {
+            const draft = JSON.parse(draftRaw);
+            const { bookingData, selectedPackage } = draft;
+            const payload = {
+              ...bookingData,
+              packageName: selectedPackage.name,
+              packagePrice: selectedPackage.price,
+              packageDuration: selectedPackage.duration,
+              totalPrice: selectedPackage.price,
+              attachments: [], // attachments cannot be preserved across email link flow
+              agreedToProtocols: true,
+              effectivePurpose: bookingData.purpose === 'Other' ? bookingData.otherPurpose : bookingData.purpose,
+              status: 'verified',
+              emailVerified: true
+            };
+            // Organization fields
+            if (selectedPackage.name === 'Organization & Institutional Tour') {
+              payload.organizationType = bookingData.organizationType;
+              if (bookingData.organizationType === 'School') {
+                payload.schoolName = bookingData.schoolName;
+                if (bookingData.course) payload.course = bookingData.course;
+              } else if (bookingData.organizationType === 'Organization') {
+                payload.organizationName = bookingData.organizationName;
+              }
+            }
+            await bookingService.createBooking(payload);
+          }
+          // Cleanup and sign out (to keep site accountless feel)
+          localStorage.removeItem('pendingBookingDraft');
+          localStorage.removeItem('pendingBookingEmail');
+          await signOut(auth);
+          toast.success('Email verified and booking submitted successfully!');
+          navigate('/booking');
+        } catch (err) {
+          console.error('Error completing email link sign-in:', err);
+          toast.error('Verification failed. Please try again.');
+          navigate('/booking');
+        } finally {
+          setReady(true);
+        }
+      })();
+      return;
+    }
+
     if (!mode || !oobCode) {
       navigate('/');
       return;
@@ -48,7 +105,7 @@ const FirebaseActionRedirect = () => {
           console.log('Attempting email verification without login requirement');
           
           await applyActionCode(auth, oobCode);
-          console.log('Email verification successful');
+           console.log('Email verification successful');
           
           // Check if user is now verified (only if user is logged in)
           if (auth.currentUser) {
