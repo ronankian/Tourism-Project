@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Users, Clock, Mail } from 'lucide-react';
 import { bookingService } from '../services/bookingService';
-import { auth } from '../firebase';
-import { sendSignInLinkToEmail } from 'firebase/auth';
 import { storage } from '../firebase';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import toast from 'react-hot-toast';
@@ -85,33 +83,7 @@ const Booking = () => {
     setIsSubmitting(true);
 
     try {
-      // 1) If not signed in with this email, send passwordless email link and save draft
-      const emailToVerify = (bookingData.email || '').trim();
-      const currentUserEmail = auth.currentUser?.email || '';
-      const isSignedInWithSameEmail = currentUserEmail.toLowerCase() === emailToVerify.toLowerCase();
-
-      if (!isSignedInWithSameEmail) {
-        const actionCodeSettings = {
-          url: `${window.location.origin}/firebase-action?flow=booking`,
-          handleCodeInApp: true
-        };
-
-        // Save booking draft (without file blobs) for post-verification finalize
-        const draft = {
-          bookingData: { ...bookingData, attachmentsWarning: attachedFiles.length > 0 },
-          selectedPackage,
-          createdAt: Date.now()
-        };
-        localStorage.setItem('pendingBookingDraft', JSON.stringify(draft));
-        localStorage.setItem('pendingBookingEmail', emailToVerify);
-
-        await sendSignInLinkToEmail(auth, emailToVerify, actionCodeSettings);
-        toast.success('Verification link sent! Please check your email to continue.');
-        setShowVerificationMessage(true);
-        return;
-      }
-
-      // 2) Already signed in with the same email: proceed to upload attachments and create booking immediately
+      // Upload attachments if any
       let attachments = [];
       if (attachedFiles.length > 0) {
         const now = Date.now();
@@ -130,18 +102,20 @@ const Booking = () => {
         attachments = await Promise.all(uploads);
       }
 
+      // Prepare booking data
       const bookingDataToSubmit = {
         ...bookingData,
         packageName: selectedPackage.name,
         packagePrice: selectedPackage.price,
         packageDuration: selectedPackage.duration,
-        totalPrice: selectedPackage.price, // Free
+        totalPrice: selectedPackage.price,
         attachments,
         agreedToProtocols: true,
         effectivePurpose: bookingData.purpose === 'Other' ? bookingData.otherPurpose : bookingData.purpose,
         status: 'verified',
         emailVerified: true
       };
+      
       if (selectedPackage.name === 'Organization & Institutional Tour') {
         bookingDataToSubmit.organizationType = bookingData.organizationType;
         if (bookingData.organizationType === 'School') {
@@ -152,9 +126,10 @@ const Booking = () => {
         }
       }
 
+      // Create booking and send email immediately
       const result = await bookingService.createBooking(bookingDataToSubmit);
       if (result.success) {
-        toast.success('Booking submitted successfully!');
+        toast.success('Booking submitted successfully! Check your email for confirmation.');
         setShowVerificationMessage(true);
       }
     } catch (error) {
@@ -270,7 +245,53 @@ const Booking = () => {
 
                 
 
-                {/* Moved date/time/guests after contact info */}
+                {/* Contact info first */}
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    id="name"
+                    required
+                    value={bookingData.name}
+                    onChange={(e) => setBookingData({ ...bookingData, name: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    placeholder="Enter your full name"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    required
+                    value={bookingData.email}
+                    onChange={(e) => setBookingData({ ...bookingData, email: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    placeholder="Enter your email"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                    Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    id="phone"
+                    required
+                    value={bookingData.phone}
+                    onChange={(e) => setBookingData({ ...bookingData, phone: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    placeholder="Enter your phone number"
+                  />
+                </div>
+
+                {/* Then date/time/guests */}
                 <div>
                   <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-2">
                     Preferred Date
@@ -280,7 +301,7 @@ const Booking = () => {
                     id="date"
                     required
                     value={bookingData.date}
-                    onChange={(e) => setBookingData({...bookingData, date: e.target.value})}
+                    onChange={(e) => setBookingData({ ...bookingData, date: e.target.value })}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   />
                 </div>
@@ -334,7 +355,7 @@ const Booking = () => {
                       id="guests"
                       required
                       value={bookingData.guests}
-                      onChange={(e) => setBookingData({...bookingData, guests: parseInt(e.target.value)})}
+                      onChange={(e) => setBookingData({ ...bookingData, guests: parseInt(e.target.value) })}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     >
                       {[...Array(selectedPackage?.maxGuests || 20)].map((_, i) => (
@@ -342,51 +363,6 @@ const Booking = () => {
                       ))}
                     </select>
                   )}
-                </div>
-
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    required
-                    value={bookingData.name}
-                    onChange={(e) => setBookingData({...bookingData, name: e.target.value})}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    placeholder="Enter your full name"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    required
-                    value={bookingData.email}
-                    onChange={(e) => setBookingData({...bookingData, email: e.target.value})}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    placeholder="Enter your email"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    id="phone"
-                    required
-                    value={bookingData.phone}
-                    onChange={(e) => setBookingData({...bookingData, phone: e.target.value})}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    placeholder="Enter your phone number"
-                  />
                 </div>
 
                 {/* Organization option details (shown only when Organization & Institutional Tour is selected) */}
@@ -600,19 +576,18 @@ const Booking = () => {
                   </div>
                 )}
 
-                {showVerificationMessage ? (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-                    <Mail className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                    <h3 className="text-lg font-semibold text-green-800 mb-2">Check Your Email</h3>
-                    <p className="text-green-700 mb-4">
-                      We've sent a verification email to <strong>{bookingData.email}</strong>. 
-                      Please click the verification link to confirm your booking.
-                    </p>
-                    <p className="text-sm text-green-600">
-                      If you don't see the email, check your spam folder.
-                    </p>
-                  </div>
-                ) : (
+                                 {showVerificationMessage ? (
+                   <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                     <Mail className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                     <h3 className="text-lg font-semibold text-green-800 mb-2">Booking Confirmed!</h3>
+                     <p className="text-green-700 mb-4">
+                       Your booking has been submitted successfully! We've sent a confirmation email with details to <strong>{bookingData.email}</strong>.
+                     </p>
+                     <p className="text-sm text-green-600">
+                       If you don't see the email, check your spam folder.
+                     </p>
+                   </div>
+                 ) : (
                   <button
                     type="submit"
                     disabled={!selectedPackage || isSubmitting}
