@@ -12,8 +12,8 @@ import {
   fetchSignInMethodsForEmail,
   deleteUser,
   reauthenticateWithCredential,
-  EmailAuthProvider
-  
+  EmailAuthProvider,
+  sendSignInLinkToEmail
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../firebase';
@@ -140,62 +140,54 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData, showToast = true) => {
     try {
-      // Validate password length on server side as well
-      if (!userData.password || userData.password.length < 8) {
-        const errorMsg = 'Password must be at least 8 characters long';
-        if (showToast) toast.error(errorMsg);
-        return { success: false, error: errorMsg };
-      }
-      
-      let userCredential;
-      let firebaseUser;
-      
-      if (userData.email && userData.email.trim()) {
-        // Register with email
-        userCredential = await createUserWithEmailAndPassword(auth, userData.email.trim(), userData.password);
-        firebaseUser = userCredential.user;
-        
-        // Update display name
-        const fullName = `${userData.firstName} ${userData.lastName}`;
-        await updateProfile(firebaseUser, {
-          displayName: fullName
-        });
-
-                // Store additional user data in Firestore
-        await setDoc(doc(db, 'users', firebaseUser.uid), {
-          firstName: userData.firstName,
-          lastName: userData.lastName,
-          fullName: fullName,
-          email: userData.email,
-          role: 'traveler',
-          avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
-          createdAt: new Date().toISOString(),
-          emailVerified: false
-        });
-
-        // Send verification email using Firebase's built-in method with custom action settings
-        const actionCodeSettings = {
-          url: `${window.location.origin}/firebase-action`,
-          handleCodeInApp: true
-        };
-        
-        await sendEmailVerification(firebaseUser, actionCodeSettings);
-
-        // Start the 60-second timer for the initial verification email
-        setEmailVerificationTimer(true);
-        setTimeout(() => {
-          setEmailVerificationTimer(false);
-        }, 60000);
-
-        if (showToast) {
-          toast.success('Account created successfully! Please check your email to verify your account.');
-        }
-        return { success: true };
-      } else {
+      if (!userData.email || !userData.email.trim()) {
         const errorMsg = 'Please enter a valid email address.';
         if (showToast) toast.error(errorMsg);
         return { success: false, error: errorMsg };
       }
+
+      const emailToVerify = userData.email.trim().toLowerCase();
+      
+      // Check if user already exists
+      const signInMethods = await fetchSignInMethodsForEmail(auth, emailToVerify);
+      if (signInMethods.length > 0) {
+        const errorMsg = 'An account with this email already exists. Please try signing in instead.';
+        if (showToast) toast.error(errorMsg);
+        return { success: false, error: errorMsg };
+      }
+
+      // Store user data temporarily for later use when they complete sign-in
+      const tempUserData = {
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        email: emailToVerify,
+        role: 'traveler',
+        avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
+        createdAt: new Date().toISOString(),
+        emailVerified: false
+      };
+      
+      // Store temporary user data in localStorage
+      localStorage.setItem('pendingRegistrationData', JSON.stringify(tempUserData));
+
+      // Send passwordless sign-in link using Firebase's built-in method
+      const actionCodeSettings = {
+        url: `${window.location.origin}/firebase-action`,
+        handleCodeInApp: true
+      };
+      
+      await sendSignInLinkToEmail(auth, emailToVerify, actionCodeSettings);
+
+      // Start the 60-second timer for the initial sign-in link
+      setEmailVerificationTimer(true);
+      setTimeout(() => {
+        setEmailVerificationTimer(false);
+      }, 60000);
+
+      if (showToast) {
+        toast.success('Sign-in link sent! Please check your email to complete registration.');
+      }
+      return { success: true };
     } catch (error) {
       console.error('Registration error:', error);
       let errorMessage = 'Registration failed. Please try again.';
@@ -206,9 +198,6 @@ export const AuthProvider = ({ children }) => {
           break;
         case 'auth/invalid-email':
           errorMessage = 'Please enter a valid email address.';
-          break;
-        case 'auth/weak-password':
-          errorMessage = 'Password is too weak. Please choose a stronger password with at least 8 characters.';
           break;
         case 'auth/network-request-failed':
           errorMessage = 'Network error. Please check your connection and try again.';

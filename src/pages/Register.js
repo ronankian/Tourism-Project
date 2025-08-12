@@ -2,19 +2,14 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
-import { Eye, EyeOff, User, Mail, Lock } from 'lucide-react';
+import { User, Mail } from 'lucide-react';
 
 const Register = () => {
      const [formData, setFormData] = useState({
      firstName: '',
      lastName: '',
-     email: '',
-     password: '',
-     confirmPassword: ''
+     email: ''
    });
-  const [inputType, setInputType] = useState('email'); // Only email now
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState('');
   const [errors, setErrors] = useState({});
@@ -26,24 +21,12 @@ const Register = () => {
     const newErrors = { ...errors };
     
     switch (name) {
-      case 'password':
-        if (value && value.length < 8) {
-          newErrors.password = 'Password must be at least 8 characters long';
+      case 'email':
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (value && !emailRegex.test(value)) {
+          newErrors.email = 'Please enter a valid email address';
         } else {
-          delete newErrors.password;
-        }
-        // Also check confirm password match when password changes
-        if (formData.confirmPassword && value !== formData.confirmPassword) {
-          newErrors.confirmPassword = 'Passwords do not match';
-        } else if (formData.confirmPassword && value === formData.confirmPassword) {
-          delete newErrors.confirmPassword;
-        }
-        break;
-      case 'confirmPassword':
-        if (value && formData.password && value !== formData.password) {
-          newErrors.confirmPassword = 'Passwords do not match';
-        } else if (value === formData.password) {
-          delete newErrors.confirmPassword;
+          delete newErrors.email;
         }
         break;
       default:
@@ -107,18 +90,10 @@ const Register = () => {
       return;
     }
     
-    if (!formData.password || formData.password.length < 8) {
-      setRegistrationError('Password must be at least 8 characters long');
-      return;
-    }
-    
-    if (!formData.confirmPassword) {
-      setRegistrationError('Please confirm your password');
-      return;
-    }
-    
-    if (formData.password !== formData.confirmPassword) {
-      setRegistrationError('Passwords do not match. Please make sure both passwords are identical.');
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email.trim())) {
+      setRegistrationError('Please enter a valid email address');
       return;
     }
     
@@ -128,8 +103,7 @@ const Register = () => {
       const result = await register({
         firstName: formData.firstName,
         lastName: formData.lastName,
-        email: formData.email,
-        password: formData.password
+        email: formData.email
       }, false); // Pass false to disable toast
         
       if (result && result.success) {
@@ -200,6 +174,9 @@ const Register = () => {
           <h2 className="text-3xl font-bold text-green-600 mb-2">
             Create Account
           </h2>
+          <p className="text-gray-600 mb-4">
+            We'll send you a secure sign-in link via email - no password needed!
+          </p>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -283,92 +260,6 @@ const Register = () => {
                </label>
              </div>
 
-            <div className="relative">
-                              <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  value={formData.password}
-                  onChange={handleChange}
-                  onFocus={() => handleFocus('password')}
-                  onBlur={handleBlur}
-                  autoComplete="new-password"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-12"
-                  style={{ 
-                    WebkitTextSecurity: showPassword ? 'none' : 'disc',
-                    WebkitAppearance: 'none',
-                    MozAppearance: 'none',
-                    msClear: 'none'
-                  }}
-                />
-              <label 
-                htmlFor="password" 
-                className={`absolute left-4 transition-all duration-200 pointer-events-none ${
-                  formData.password || focusedField === 'password'
-                    ? '-top-2 bg-white px-2 text-sm font-medium'
-                    : 'top-1/2 transform -translate-y-1/2 text-gray-500'
-                } ${
-                  focusedField === 'password' ? 'text-[#df2e38]' : 'text-gray-500'
-                }`}
-              >
-                Password
-              </label>
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
-            </div>
-            {errors.password && (
-              <p className="mt-1 text-sm text-red-600">{errors.password}</p>
-            )}
-
-            {/* Confirm Password Input */}
-            <div className="relative">
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type={showConfirmPassword ? 'text' : 'password'}
-                required
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                onFocus={() => handleFocus('confirmPassword')}
-                onBlur={handleBlur}
-                autoComplete="new-password"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-12"
-                style={{ 
-                  WebkitTextSecurity: showConfirmPassword ? 'none' : 'disc',
-                  WebkitAppearance: 'none',
-                  MozAppearance: 'none',
-                  msClear: 'none'
-                }}
-              />
-              <label 
-                htmlFor="confirmPassword" 
-                className={`absolute left-4 transition-all duration-200 pointer-events-none ${
-                  formData.confirmPassword || focusedField === 'confirmPassword'
-                    ? '-top-2 bg-white px-2 text-sm font-medium'
-                    : 'top-1/2 transform -translate-y-1/2 text-gray-500'
-                } ${
-                  focusedField === 'confirmPassword' ? 'text-[#df2e38]' : 'text-gray-500'
-                }`}
-              >
-                Confirm Password
-              </label>
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
-            </div>
-            {errors.confirmPassword && (
-              <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
-            )}
           </div>
 
           {registrationError && (
@@ -383,7 +274,7 @@ const Register = () => {
                disabled={loading}
                className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
              >
-               {loading ? 'Creating account...' : 'Create Account'}
+               {loading ? 'Sending sign-in link...' : 'Send Sign-in Link'}
              </button>
            </div>
 

@@ -27,6 +27,7 @@ import Dashboard from './pages/Dashboard';
 import AdminDashboard from './components/AdminDashboard';
 import About from './pages/About';
 import Contact from './pages/Contact';
+import VerifyBooking from './pages/VerifyBooking';
 
 function App() {
   return (
@@ -41,6 +42,7 @@ function App() {
           {/* Admin access route - passkey-only */}
           <Route path="/admin-login" element={<AdminLogin />} />
           <Route path="/verification" element={<Verification />} />
+          <Route path="/verify-booking" element={<VerifyBooking />} />
 
           <Route path="/reset-password" element={<PasswordReset />} />
           <Route path="/new-password" element={<NewPassword />} />

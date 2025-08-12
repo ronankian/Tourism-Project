@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Users, Clock, Mail } from 'lucide-react';
 import { bookingService } from '../services/bookingService';
-import { storage } from '../firebase';
+import { storage, auth } from '../firebase';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { sendSignInLinkToEmail } from 'firebase/auth';
 import toast from 'react-hot-toast';
+// emailjs removed from the booking page (emails are sent post-verification)
+
 
 const Booking = () => {
   const [selectedPackage, setSelectedPackage] = useState(null);
@@ -18,10 +21,7 @@ const Booking = () => {
     specialRequests: '',
     purpose: '',
     otherPurpose: '',
-    organizationType: '',
-    schoolName: '',
-    course: '',
-    organizationName: ''
+    schoolOrOrganizationName: ''
   });
 
   const packages = [
@@ -52,9 +52,14 @@ const Booking = () => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showVerificationMessage, setShowVerificationMessage] = useState(false);
+  const [duplicateMessage, setDuplicateMessage] = useState('');
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [agreedToProtocols, setAgreedToProtocols] = useState(false);
   const [showProtocolModal, setShowProtocolModal] = useState(false);
+
+    const TEST_MODE = String(process.env.REACT_APP_TEST_MODE).toLowerCase() === 'true';
+      
+      // Removed local generation of permission letter; handled by email after verification
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -83,23 +88,19 @@ const Booking = () => {
     setIsSubmitting(true);
 
     try {
-      // Upload attachments if any
-      let attachments = [];
-      if (attachedFiles.length > 0) {
-        const now = Date.now();
-        const uploads = attachedFiles.map(async (file, index) => {
-          const path = `booking-attachments/${now}-${index}-${file.name}`;
-          const ref = storageRef(storage, path);
-          await uploadBytes(ref, file);
-          const url = await getDownloadURL(ref);
-          return {
-            name: file.name,
-            url,
-            size: file.size,
-            contentType: file.type || 'application/octet-stream'
-          };
-        });
-        attachments = await Promise.all(uploads);
+      // Duplicate check before doing anything
+      try {
+        const hasActive = await bookingService.hasActiveBooking(bookingData.email);
+        if (hasActive) {
+          const message = 'This email already has an ongoing booking. You can submit a new booking with this email after your previously selected date and time has passed.';
+          toast.error(message);
+          setDuplicateMessage(message);
+          setShowVerificationMessage(false);
+          return;
+        }
+      } catch (dupErr) {
+        // If duplicate check fails silently proceed to avoid blocking legitimate bookings
+        console.warn('Duplicate check failed:', dupErr);
       }
 
       // Prepare booking data
@@ -109,27 +110,45 @@ const Booking = () => {
         packagePrice: selectedPackage.price,
         packageDuration: selectedPackage.duration,
         totalPrice: selectedPackage.price,
-        attachments,
+        attachments: [],
         agreedToProtocols: true,
         effectivePurpose: bookingData.purpose === 'Other' ? bookingData.otherPurpose : bookingData.purpose,
-        status: 'verified',
-        emailVerified: true
+        status: 'pending_email_verification',
+        emailVerified: false
       };
       
       if (selectedPackage.name === 'Organization & Institutional Tour') {
-        bookingDataToSubmit.organizationType = bookingData.organizationType;
-        if (bookingData.organizationType === 'School') {
-          bookingDataToSubmit.schoolName = bookingData.schoolName;
-          if (bookingData.course) bookingDataToSubmit.course = bookingData.course;
-        } else if (bookingData.organizationType === 'Organization') {
-          bookingDataToSubmit.organizationName = bookingData.organizationName;
-        }
+        bookingDataToSubmit.schoolOrOrganizationName = bookingData.schoolOrOrganizationName;
       }
 
-      // Create booking and send email immediately
-      const result = await bookingService.createBooking(bookingDataToSubmit);
-      if (result.success) {
-        toast.success('Booking submitted successfully! Check your email for confirmation.');
+      if (TEST_MODE) {
+        // Testing mode: send verification email and show success message
+        await sendBookingVerificationEmail(bookingDataToSubmit);
+        toast.success('Booking verification email sent (Test Mode). Please check your email and click the verification link.');
+        setShowVerificationMessage(true);
+      } else {
+        // Production: upload attachments first, then send verification email
+        let attachments = [];
+        if (attachedFiles.length > 0) {
+          const now = Date.now();
+          const uploads = attachedFiles.map(async (file, index) => {
+            const path = `booking-attachments/${now}-${index}-${file.name}`;
+            const ref = storageRef(storage, path);
+            await uploadBytes(ref, file);
+            const url = await getDownloadURL(ref);
+            return {
+              name: file.name,
+              url,
+              size: file.size,
+              contentType: file.type || 'application/octet-stream'
+            };
+          });
+          attachments = await Promise.all(uploads);
+        }
+
+        // Store booking data temporarily and send verification email
+        await sendBookingVerificationEmail({ ...bookingDataToSubmit, attachments });
+        toast.success('Booking verification email sent! Please check your email and click the verification link to complete your booking.');
         setShowVerificationMessage(true);
       }
     } catch (error) {
@@ -138,6 +157,24 @@ const Booking = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Function to send booking verification email
+  const sendBookingVerificationEmail = async (bookingData) => {
+    // Store booking data temporarily in localStorage
+    localStorage.setItem('pendingBookingDraft', JSON.stringify({
+      bookingData,
+      selectedPackage
+    }));
+    localStorage.setItem('pendingBookingEmail', bookingData.email);
+
+    // Send Firebase email verification link
+    const actionCodeSettings = {
+      url: `${window.location.origin}/firebase-action`,
+      handleCodeInApp: true
+    };
+    
+    await sendSignInLinkToEmail(auth, bookingData.email, actionCodeSettings);
   };
 
   return (
@@ -169,7 +206,16 @@ const Booking = () => {
                     ? 'border-primary-500 bg-primary-50' 
                     : 'border-gray-200 hover:border-primary-300'
                 }`}
-                onClick={() => setSelectedPackage(pkg)}
+                onClick={() => {
+                  setSelectedPackage(pkg);
+                  // Adjust guest count if switching to a package with lower limits
+                  if (!pkg.hasNoLimit && bookingData.guests > (pkg.maxGuests || 20)) {
+                    setBookingData({
+                      ...bookingData,
+                      guests: pkg.maxGuests || 20
+                    });
+                  }
+                }}
               >
                 <div className="flex justify-between items-start mb-4">
                   <div>
@@ -291,168 +337,154 @@ const Booking = () => {
                   />
                 </div>
 
-                {/* Then date/time/guests */}
-                <div>
-                  <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-2">
-                    Preferred Date
-                  </label>
-                  <input
-                    type="date"
-                    id="date"
-                    required
-                    value={bookingData.date}
-                    onChange={(e) => setBookingData({ ...bookingData, date: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  />
-                </div>
+                                                                    {/* Date, Time, Guests, and Purpose - 2x2 Grid */}
+                 <div className="grid grid-cols-2 gap-4">
+                   {/* Number of Guests */}
+                   <div>
+                     <label htmlFor="guests" className="block text-sm font-medium text-gray-700 mb-2">
+                       Number of Guests
+                     </label>
+                     <div className="flex items-center border border-gray-300 rounded-lg bg-white">
+                       <button
+                         type="button"
+                         onClick={() => {
+                           const newValue = bookingData.guests - 1;
+                           if (newValue < 1) return;
+                           setBookingData({ ...bookingData, guests: newValue });
+                         }}
+                         className="flex-shrink-0 w-10 py-3 text-gray-500 hover:bg-gray-50 focus:outline-none focus:bg-gray-50 transition-colors rounded-l-lg border-r border-gray-300 flex items-center justify-center"
+                       >
+                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                         </svg>
+                       </button>
+                       <input
+                         type="number"
+                         id="guests"
+                         min={1}
+                         max={selectedPackage?.hasNoLimit ? undefined : (selectedPackage?.maxGuests || 20)}
+                         required
+                         value={bookingData.guests}
+                         onChange={(e) => {
+                           const value = parseInt(e.target.value);
+                           let newValue = value;
+                           
+                           // Enforce minimum of 1
+                           if (Number.isNaN(value) || value < 1) {
+                             newValue = 1;
+                           }
+                           // Enforce maximum only for packages with limits
+                           else if (!selectedPackage?.hasNoLimit && value > (selectedPackage?.maxGuests || 20)) {
+                             newValue = selectedPackage?.maxGuests || 20;
+                           }
+                           
+                           setBookingData({
+                             ...bookingData,
+                             guests: newValue
+                           });
+                         }}
+                         className="flex-1 min-w-0 px-2 py-3 text-center font-medium focus:ring-2 focus:ring-primary-500 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                         placeholder="1"
+                       />
+                       <button
+                         type="button"
+                         onClick={() => {
+                           const newValue = bookingData.guests + 1;
+                           if (!selectedPackage?.hasNoLimit && newValue > (selectedPackage?.maxGuests || 20)) return;
+                           setBookingData({ ...bookingData, guests: newValue });
+                         }}
+                         className="flex-shrink-0 w-10 py-3 text-gray-500 hover:bg-gray-50 focus:outline-none focus:bg-gray-50 transition-colors rounded-r-lg border-l border-gray-300 flex items-center justify-center"
+                       >
+                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                         </svg>
+                       </button>
+                     </div>
+                   </div>
 
-                <div>
-                  <label htmlFor="time" className="block text-sm font-medium text-gray-700 mb-2">
-                    Preferred Time
-                  </label>
-                  <select
-                    id="time"
-                    required
-                    value={bookingData.time}
-                    onChange={(e) => setBookingData({ ...bookingData, time: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  >
-                    <option value="" disabled>Select a time</option>
-                    <option value="08:00 AM">08:00 AM</option>
-                    <option value="09:00 AM">09:00 AM</option>
-                    <option value="10:00 AM">10:00 AM</option>
-                    <option value="11:00 AM">11:00 AM</option>
-                    <option value="01:00 PM">01:00 PM</option>
-                    <option value="02:00 PM">02:00 PM</option>
-                    <option value="03:00 PM">03:00 PM</option>
-                    <option value="04:00 PM">04:00 PM</option>
-                  </select>
-                </div>
+                   {/* Preferred Date */}
+                   <div>
+                     <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-2">
+                       Preferred Date
+                     </label>
+                     <input
+                       type="date"
+                       id="date"
+                       required
+                       onChange={(e) => setBookingData({ ...bookingData, date: e.target.value })}
+                       value={bookingData.date || ''}
+                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                     />
+                   </div>
 
-                <div>
-                  <label htmlFor="guests" className="block text-sm font-medium text-gray-700 mb-2">
-                    Number of Guests
-                  </label>
-                  {selectedPackage?.hasNoLimit ? (
-                    <input
-                      type="number"
-                      id="guests"
-                      min={1}
-                      required
-                      value={bookingData.guests}
-                      onChange={(e) => {
-                        const value = parseInt(e.target.value);
-                        setBookingData({
-                          ...bookingData,
-                          guests: Number.isNaN(value) || value < 1 ? 1 : value
-                        });
-                      }}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      placeholder="Enter number of guests"
-                    />
-                  ) : (
-                    <select
-                      id="guests"
-                      required
-                      value={bookingData.guests}
-                      onChange={(e) => setBookingData({ ...bookingData, guests: parseInt(e.target.value) })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    >
-                      {[...Array(selectedPackage?.maxGuests || 20)].map((_, i) => (
-                        <option key={i + 1} value={i + 1}>{i + 1}</option>
-                      ))}
-                    </select>
-                  )}
-                </div>
+                   {/* Purpose of Visit */}
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                       Purpose of Visit
+                     </label>
+                     <select
+                       id="purpose"
+                       required
+                       value={bookingData.purpose}
+                       onChange={(e) => setBookingData({ ...bookingData, purpose: e.target.value, otherPurpose: '' })}
+                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                     >
+                       <option value="" disabled>Select a purpose</option>
+                       <option value="Event">Event</option>
+                       <option value="Field Trip">Field Trip</option>
+                       <option value="Interview">Interview</option>
+                       <option value="Ocular Visit">Ocular Visit</option>
+                       <option value="Vlog/Video">Vlog/Video</option>
+                       <option value="Other">Other</option>
+                     </select>
+                   </div>
+
+                   {/* Preferred Time */}
+                   <div>
+                     <label htmlFor="time" className="block text-sm font-medium text-gray-700 mb-2">
+                       Preferred Time
+                     </label>
+                     <div className="relative">
+                       <select
+                         id="time"
+                         required
+                         value={bookingData.time}
+                         onChange={(e) => setBookingData({ ...bookingData, time: e.target.value })}
+                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent pr-12 appearance-none cursor-pointer"
+                       >
+                         <option value="" disabled>Select a time</option>
+                         <option value="08:00 AM">08:00 AM</option>
+                         <option value="09:00 AM">09:00 AM</option>
+                         <option value="10:00 AM">10:00 AM</option>
+                         <option value="11:00 AM">11:00 AM</option>
+                         <option value="01:00 PM">01:00 PM</option>
+                         <option value="02:00 PM">02:00 PM</option>
+                         <option value="03:00 PM">03:00 PM</option>
+                         <option value="04:00 PM">04:00 PM</option>
+                       </select>
+                       <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                         <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                         </svg>
+                       </div>
+                     </div>
+                   </div>
+                 </div>
 
                 {/* Organization option details (shown only when Organization & Institutional Tour is selected) */}
                 {selectedPackage?.name === 'Organization & Institutional Tour' && (
-                  <>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">School or Organization</label>
-                      <select
-                        value={bookingData.organizationType}
-                        onChange={(e) =>
-                          setBookingData({
-                            ...bookingData,
-                            organizationType: e.target.value,
-                            // Reset dependent fields when switching type
-                            schoolName: '',
-                            course: '',
-                            organizationName: ''
-                          })
-                        }
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                        required
-                      >
-                        <option value="" disabled>Select type</option>
-                        <option value="School">School</option>
-                        <option value="Organization">Organization</option>
-                      </select>
-                    </div>
-
-                    {bookingData.organizationType === 'School' && (
-                      <>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">School Name</label>
+                     <label className="block text-sm font-medium text-gray-700 mb-2">School/Organization Name</label>
                           <input
                             type="text"
-                            value={bookingData.schoolName}
-                            onChange={(e) => setBookingData({ ...bookingData, schoolName: e.target.value })}
+                       value={bookingData.schoolOrOrganizationName}
+                       onChange={(e) => setBookingData({ ...bookingData, schoolOrOrganizationName: e.target.value })}
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                            placeholder="Enter school name"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Course (Optional)</label>
-                          <input
-                            type="text"
-                            value={bookingData.course}
-                            onChange={(e) => setBookingData({ ...bookingData, course: e.target.value })}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                            placeholder="Enter course"
-                          />
-                        </div>
-                      </>
-                    )}
-
-                    {bookingData.organizationType === 'Organization' && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Organization Name</label>
-                        <input
-                          type="text"
-                          value={bookingData.organizationName}
-                          onChange={(e) => setBookingData({ ...bookingData, organizationName: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                          placeholder="Enter organization name"
+                       placeholder="Enter school or organization name"
                           required
                         />
                       </div>
-                    )}
-                  </>
                 )}
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Purpose of Visit
-                  </label>
-                  <select
-                    id="purpose"
-                    required
-                    value={bookingData.purpose}
-                    onChange={(e) => setBookingData({ ...bookingData, purpose: e.target.value, otherPurpose: '' })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  >
-                    <option value="" disabled>Select a purpose</option>
-                    <option value="Event">Event</option>
-                    <option value="Field Trip">Field Trip</option>
-                    <option value="Interview">Interview</option>
-                    <option value="Ocular Visit">Ocular Visit</option>
-                    <option value="Vlog/Video">Vlog/Video</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
 
                 {bookingData.purpose === 'Other' && (
                   <div>
@@ -576,24 +608,54 @@ const Booking = () => {
                   </div>
                 )}
 
-                                 {showVerificationMessage ? (
-                   <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-                     <Mail className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                     <h3 className="text-lg font-semibold text-green-800 mb-2">Booking Confirmed!</h3>
-                     <p className="text-green-700 mb-4">
-                       Your booking has been submitted successfully! We've sent a confirmation email with details to <strong>{bookingData.email}</strong>.
+                 {duplicateMessage ? (
+                   <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+                     <Mail className="w-8 h-8 text-red-600 mx-auto mb-2" />
+                     <h3 className="text-lg font-semibold text-red-800 mb-2">Duplicate Booking Detected</h3>
+                     <p className="text-red-700 mb-4">{duplicateMessage}</p>
+                   </div>
+                 ) : showVerificationMessage ? (
+                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                     <Mail className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                     <h3 className="text-lg font-semibold text-blue-800 mb-2">Step 1 Complete - Email Verification Required!</h3>
+                     <p className="text-blue-700 mb-4">
+                       We've sent a verification email to <strong>{bookingData.email}</strong>. Please check your email and click the verification link to complete your booking and receive your permission letter.
                      </p>
-                     <p className="text-sm text-green-600">
-                       If you don't see the email, check your spam folder.
+                     <p className="text-sm text-blue-600">
+                       If you don't see the email, check your spam folder. The verification link will expire in 24 hours.
                      </p>
                    </div>
                  ) : (
                   <button
                     type="submit"
-                    disabled={!selectedPackage || isSubmitting}
+                    disabled={!selectedPackage || isSubmitting || !(() => {
+                      // Check all required fields
+                      const basicFieldsFilled = bookingData.name && 
+                                               bookingData.email && 
+                                               bookingData.phone && 
+                                               bookingData.guests && 
+                                               bookingData.date && 
+                                               bookingData.purpose && 
+                                               bookingData.time &&
+                                               agreedToProtocols;
+
+                      // Check organization-specific fields if Organization package is selected
+                      if (selectedPackage?.name === 'Organization & Institutional Tour') {
+                        return basicFieldsFilled && 
+                               bookingData.schoolOrOrganizationName && 
+                               (bookingData.purpose !== 'Other' || bookingData.otherPurpose);
+                      }
+
+                      // Check if "Other" purpose requires additional field
+                      if (bookingData.purpose === 'Other') {
+                        return basicFieldsFilled && bookingData.otherPurpose;
+                      }
+
+                      return basicFieldsFilled;
+                    })()}
                     className="w-full btn-primary py-3 text-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isSubmitting ? 'Submitting...' : 'Book Now'}
+                    {isSubmitting ? 'Sending Verification Email...' : 'Send Verification Email'}
                   </button>
                 )}
               </form>

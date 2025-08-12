@@ -1,18 +1,28 @@
-import { 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  doc, 
-  getDocs, 
-  query, 
-  where, 
-  orderBy,
-  serverTimestamp,
-  getDoc
-} from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, query, where, getDocs, serverTimestamp, addDoc, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 
+
+// Helper: get static Google Drive link to default permission letter template
+const getDefaultPermissionLetterLink = () => {
+  // Replace this with your actual Google Drive link to a default permission letter template
+  // Make sure the file is set to "Anyone with the link can view"
+  return process.env.REACT_APP_DEFAULT_PERMISSION_LETTER_LINK || 'https://drive.google.com/file/d/YOUR_DEFAULT_TEMPLATE_FILE_ID/view?usp=sharing';
+};
+
 export const bookingService = {
+  // Check if an email already has any upcoming (active) booking
+  async hasActiveBooking(email) {
+    if (!email) return false;
+    const now = Date.now();
+    const qDup = query(
+      collection(db, 'bookings'),
+      where('email', '==', email),
+      where('visitDateTimeEpoch', '>=', now)
+    );
+    const dupSnap = await getDocs(qDup);
+    return !dupSnap.empty;
+  },
+
   // Create a new booking
   async createBooking(bookingData) {
     try {
@@ -53,19 +63,29 @@ export const bookingService = {
 
       const docRef = await addDoc(collection(db, 'bookings'), booking);
       
-       // Send confirmation email immediately (no verification needed)
-       try {
-         await this.sendBookingConfirmationEmail(docRef.id);
-       } catch (emailError) {
-         console.warn('Failed to send confirmation email:', emailError);
-         // Don't fail the booking creation if email fails
-       }
+      // If email verification is required, send verification email
+      if (!booking.emailVerified && booking.status === 'pending_email_verification') {
+        try {
+          await this.sendBookingVerificationEmail(docRef.id);
+        } catch (emailError) {
+          console.warn('Failed to send verification email:', emailError);
+          // Don't fail the booking creation if email fails
+        }
+      } else {
+        // Send confirmation email immediately (for already verified or test mode)
+        try {
+          await this.sendBookingConfirmationEmail(docRef.id);
+        } catch (emailError) {
+          console.warn('Failed to send confirmation email:', emailError);
+          // Don't fail the booking creation if email fails
+        }
+      }
        
       return { success: true, bookingId: docRef.id };
     } catch (error) {
       console.error('Error creating booking:', error);
       if (error && error.message === 'duplicate_active_booking') {
-        return { success: false, error: 'An existing booking for this email is still active or upcoming.' };
+        return { success: false, error: 'duplicate_active_booking', message: 'This email address is already associated with a booking that is currently being processed. Please wait for your current booking to be completed or contact us if you need to make changes to your existing booking.' };
       }
       throw error;
     }
@@ -74,6 +94,26 @@ export const bookingService = {
   // Verify booking email
   async verifyBookingEmail(bookingId, verificationToken) {
     try {
+      // Get the booking to verify the token
+      const bookingDoc = await getDoc(doc(db, 'bookings', bookingId));
+      if (!bookingDoc.exists()) {
+        throw new Error('Booking not found');
+      }
+      
+      const booking = bookingDoc.data();
+      
+      // Simple token verification (you may want to implement a more secure system)
+      const expectedToken = btoa(booking.email + bookingId);
+      if (verificationToken !== expectedToken) {
+        throw new Error('Invalid verification token');
+      }
+      
+      // Check if already verified
+      if (booking.emailVerified) {
+        return true; // Already verified, no need to update
+      }
+      
+      // Update booking status
       await updateDoc(doc(db, 'bookings', bookingId), {
         emailVerified: true,
         verifiedAt: serverTimestamp(),
@@ -86,7 +126,7 @@ export const bookingService = {
       return true;
     } catch (error) {
       console.error('Error verifying booking:', error);
-      throw error;
+      return false;
     }
   },
 
@@ -159,261 +199,90 @@ export const bookingService = {
     }
   },
 
+  // Send booking email verification
+  async sendBookingVerificationEmail(bookingId) {
+    try {
+      const bookingDoc = await getDoc(doc(db, 'bookings', bookingId));
+      const booking = bookingDoc.data();
+      
+      // Create verification link - you may want to implement a proper token system
+      const verificationLink = `${window.location.origin}/verify-booking?id=${bookingId}&token=${btoa(booking.email + bookingId)}`;
+      
+      const templateParams = {
+        to_email: booking.email,
+        to_name: booking.name || 'Guest',
+        subject: 'Verify Your Booking Email - Casa Hacienda de Tejeros',
+        message: `
+          Dear ${booking.name || 'Guest'},
+          
+          Thank you for your booking with Casa Hacienda de Tejeros!
+          
+          To complete your booking, please verify your email address by clicking the link below:
+          
+          ${verificationLink}
+          
+          Booking Details:
+          - Package: ${booking.packageName}
+          - Date: ${booking.date}
+          - Time: ${booking.time}
+          - Guests: ${booking.guests}
+          
+          This link will expire in 24 hours. If you did not make this booking, please ignore this email.
+          
+          Best regards,
+          Casa Hacienda de Tejeros Tourism Office
+        `
+      };
+
+      // Import EmailJS dynamically
+      const emailjs = await import('@emailjs/browser');
+      
+      await emailjs.default.send(
+        process.env.REACT_APP_EMAILJS_SERVICE_ID,
+        process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
+        templateParams,
+        { publicKey: process.env.REACT_APP_EMAILJS_PUBLIC_KEY }
+      );
+      console.log('Booking verification email sent successfully!');
+      
+    } catch (error) {
+      console.error('Error sending verification email:', error);
+    }
+  },
+
   // Send booking confirmation email
   async sendBookingConfirmationEmail(bookingId) {
     try {
       const bookingDoc = await getDoc(doc(db, 'bookings', bookingId));
       const booking = bookingDoc.data();
       
-             // Import required modules for email functionality
-       const emailjsModule = await import('@emailjs/browser');
-       const pizzip = await import('pizzip');
-       const docxtemplater = await import('docxtemplater');
-       const { storage } = await import('../firebase');
-       const firebaseStorage = await import('firebase/storage');
-       const { ref: storageRef, uploadBytes, getDownloadURL } = firebaseStorage;
+      // Get the static link to the default permission letter template
+      const permissionLetterLink = getDefaultPermissionLetterLink();
+
+      const templateParams = {
+        to_email: booking.email,
+        to_name: booking.name || 'Guest',
+        booking_id: bookingId,
+        booking_date: booking.date,
+        booking_time: booking.time,
+        number_of_people: booking.guests,
+        contact_number: booking.phone || '',
+        email_address: booking.email,
+        special_requests: booking.adminNotes || '',
+        booking_pdf: permissionLetterLink, // Static link to default template
+        booking_filename: 'Permission_Letter_Template.docx'
+      };
+
+      // Import EmailJS dynamically
+      const emailjs = await import('@emailjs/browser');
       
-      console.log('Sending booking confirmation email to:', booking.email);
-      console.log('Booking details:', {
-        name: booking.name,
-        packageName: booking.packageName,
-        date: booking.date,
-        guests: booking.guests
-      });
-      
-      // Generate permission letter if it's an organization tour
-      if (booking.packageName === 'Organization & Institutional Tour') {
-        try {
-          // Generate permission letter DOCX from template
-          const blob = await (async () => {
-            try {
-              const templateResponse = await fetch('/templates/permission-letter.docx');
-              if (!templateResponse.ok) {
-                throw new Error('Template not found');
-              }
-                             const arrayBuffer = await templateResponse.arrayBuffer();
-               const zip = new pizzip.default(arrayBuffer);
-               const doc = new docxtemplater.default(zip, { paragraphLoop: true, linebreaks: true });
-              const visitorAffiliation = (booking.organizationType === 'School')
-                ? `${booking.schoolName || ''}${booking.course ? ` (${booking.course})` : ''}`
-                : (booking.organizationName || booking.organizationType || booking.name || '');
-              doc.setData({
-                date_today: new Date().toLocaleDateString(),
-                visitor_name: booking.name || 'Guest',
-                visitor_affiliation: visitorAffiliation,
-                email: booking.email,
-                phone: booking.phone || '',
-                organization_type: booking.organizationType || '',
-                school_name: booking.schoolName || '',
-                course: booking.course || '',
-                organization_name: booking.organizationName || '',
-                purpose: booking.effectivePurpose || booking.purpose || '',
-                date_requested: booking.date,
-                time_requested: booking.time,
-                guests: String(booking.guests),
-                package_name: booking.packageName
-              });
-              doc.render();
-              return doc.getZip().generate({
-                type: 'blob',
-                mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-              });
-            } catch (templateError) {
-              console.error('Template processing failed, creating simple document:', templateError);
-              
-              // Create a simple text-based document as fallback
-              const simpleContent = `PERMISSION LETTER
-
-Date: ${new Date().toLocaleDateString()}
-
-TO WHOM IT MAY CONCERN:
-
-This letter serves as permission for the following visitor to tour Casa Hacienda de Tejeros:
-
-Visitor Information:
-- Name: ${booking.name || 'Guest'}
-- Affiliation: ${(booking.organizationType === 'School') ? `${booking.schoolName || ''}${booking.course ? ` (${booking.course})` : ''}` : (booking.organizationName || booking.organizationType || booking.name || '')}
-- Email: ${booking.email}
-- Phone: ${booking.phone || ''}
-
-Organization Details:
-- Organization Type: ${booking.organizationType || ''}
-- School Name: ${booking.schoolName || ''}
-- Course: ${booking.course || ''}
-- Organization Name: ${booking.organizationName || ''}
-
-Tour Details:
-- Purpose: ${booking.effectivePurpose || booking.purpose || ''}
-- Requested Date: ${booking.date}
-- Requested Time: ${booking.time}
-- Number of Guests: ${booking.guests}
-- Package: ${booking.packageName}
-
-This permission letter must be presented upon arrival at Casa Hacienda de Tejeros for verification.
-
-Thank you for choosing to visit our historical site.
-
-Sincerely,
-Casa Hacienda de Tejeros Tourism Office
-Rosario, Cavite`;
-
-              // Create a simple blob with the text content
-              return new Blob([simpleContent], { type: 'text/plain' });
-            }
-          })();
-          
-          // Upload the generated document to Firebase Storage to obtain an HTTPS download link
-          let httpsDownloadUrl = null;
-
-          try {
-            // Determine appropriate file extension based on blob type
-            const isDocx = blob.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-            const fileExt = isDocx ? 'docx' : 'txt';
-            const storagePath = `permission-letters/${bookingId}.${fileExt}`;
-            const objectRef = storageRef(storage, storagePath);
-            await uploadBytes(objectRef, blob);
-            httpsDownloadUrl = await getDownloadURL(objectRef);
-          } catch (uploadError) {
-            console.warn('Storage upload failed; proceeding without hosted link:', uploadError);
-          }
-
-          // Send email via EmailJS with base64 attachment as well (more reliable across clients)
-           const base64 = await new Promise((resolve, reject) => {
-             const reader = new FileReader();
-             reader.onloadend = () => resolve(String(reader.result).split(',')[1]);
-             reader.onerror = reject;
-             reader.readAsDataURL(blob);
-           });
-
-          // If a Google Apps Script mailer URL is configured, send the email with attachment via Gmail (free)
-          const gasMailerUrl = process.env.REACT_APP_GAS_EMAIL_WEBAPP_URL;
-          if (gasMailerUrl) {
-            try {
-              const isDocx = blob.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-              const filename = `Permission_Letter_${bookingId}.${isDocx ? 'docx' : 'txt'}`;
-              const htmlBody = [
-                'Dear ' + (booking.name || 'Guest') + ',<br/><br/>',
-                'Please find your permission letter attached to this email.<br/><br/>',
-                '<strong>Booking Details:</strong><br/>',
-                `Package: ${booking.packageName}<br/>`,
-                `Date: ${booking.date}<br/>`,
-                `Time: ${booking.time}<br/>`,
-                `Guests: ${booking.guests}<br/><br/>`,
-                'Best regards,<br/>Casa Hacienda de Tejeros Tourism Office'
-              ].join('');
-
-              await fetch(gasMailerUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  to: booking.email,
-                  subject: 'Your Booking Permission Letter',
-                  html: htmlBody,
-                  base64: base64,
-                  filename: filename,
-                  mimeType: blob.type || 'application/octet-stream'
-                })
-              });
-
-              console.log('Email sent via Google Apps Script with attachment.');
-              return; // Stop here; no need to use EmailJS path
-            } catch (gasError) {
-              console.warn('GAS mailer failed, falling back to EmailJS:', gasError);
-            }
-          }
-
-          // Prefer HTTPS Storage URL; fall back to data URL if upload failed (used only if template shows a link)
-          const dataUrl = `data:${blob.type};base64,${base64}`;
-          const downloadLinkForEmail = httpsDownloadUrl || dataUrl;
-
-            const templateParams = {
-              to_email: booking.email,
-              to_name: booking.name || 'Guest',
-              subject: 'Your Booking Permission Letter',
-              message: 'Please download, print, and bring this permission letter for signing at our office. The document is attached to this email.',
-              booking_pdf: base64,
-              booking_filename: `Permission_Letter_${bookingId}.docx`,
-              // If you later enable Firebase Storage, you can include this link in your template.
-              // download_link: downloadLinkForEmail
-            };
-           
-           // Send email with attachment
-           await emailjsModule.default.send(
-             process.env.REACT_APP_EMAILJS_SERVICE_ID,
-             process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
-             templateParams,
-             { publicKey: process.env.REACT_APP_EMAILJS_PUBLIC_KEY }
-           );
-           
-           console.log('Email with permission letter attachment sent successfully!');
-           
-         } catch (e) {
-           console.error('Email with attachment failed, retrying with link only:', e);
-           
-           // Log detailed error information for debugging
-           if (e.name === 'TemplateError') {
-             console.error('Template errors:', e.errors);
-             console.error('This indicates the Word document template has malformed tags.');
-             console.error('Please check the EMAILJS_SETUP.md guide for template fixes.');
-           }
-           
-           if (e.message && e.message.includes('public key is required')) {
-             console.error('EmailJS environment variables are missing.');
-             console.error('Please create a .env file with REACT_APP_EMAILJS_* variables.');
-             console.error('See EMAILJS_SETUP.md for setup instructions.');
-           }
-           
-           try {
-             // Fallback: send email without attachment
-             const fallbackMessage = 'Please download, print, and bring this permission letter for signing at our office.';
-             
-              await emailjsModule.default.send(
-               process.env.REACT_APP_EMAILJS_SERVICE_ID,
-               process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
-               {
-                 to_email: booking.email,
-                 to_name: booking.name || 'Guest',
-                 subject: 'Your Booking Permission Letter',
-                  message: `${fallbackMessage} If you do not see an attachment, please contact us at (046) 886-9707 or tourismoffice886@gmail.com.`
-               },
-               { publicKey: process.env.REACT_APP_EMAILJS_PUBLIC_KEY }
-             );
-             
-             console.log('Fallback email sent successfully!');
-           } catch (e2) {
-             console.error('Fallback email failed:', e2);
-             console.error('Both attachment and fallback email failed. Check EmailJS configuration.');
-           }
-         }
-      } else {
-                 // For non-organization tours, send simple confirmation email
-         await emailjsModule.default.send(
-           process.env.REACT_APP_EMAILJS_SERVICE_ID,
-           process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
-           {
-             to_email: booking.email,
-             to_name: booking.name || 'Guest',
-             subject: 'Booking Confirmation - Casa Hacienda de Tejeros',
-             message: `Thank you for your booking with Casa Hacienda de Tejeros Tourism Office!
-
-Booking Details:
-- Package: ${booking.packageName}
-- Date: ${booking.date}
-- Time: ${booking.time}
-- Guests: ${booking.guests}
-- Status: Verified
-
-Your booking is now being reviewed by our team. You will receive an approval email within 24 hours.
-
-Best regards,
-Casa Hacienda de Tejeros Tourism Office`,
-             // No additional documents required; no download link needed
-           },
-           { publicKey: process.env.REACT_APP_EMAILJS_PUBLIC_KEY }
-         );
-        
-        console.log('Simple confirmation email sent successfully!');
-      }
+      await emailjs.default.send(
+        process.env.REACT_APP_EMAILJS_SERVICE_ID,
+        process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
+        templateParams,
+        { publicKey: process.env.REACT_APP_EMAILJS_PUBLIC_KEY }
+      );
+      console.log('Email with permission letter template link sent successfully!');
       
     } catch (error) {
       console.error('Error sending confirmation email:', error);
@@ -470,6 +339,9 @@ Casa Hacienda de Tejeros Tourism Office`,
             <p>Best regards,<br>Casa Hacienda de Tejeros Tourism Office</p>
           `;
           break;
+        default:
+          // Unknown status; no email
+          return;
       }
       
       // For now, just log the email that would be sent

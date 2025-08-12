@@ -121,10 +121,10 @@ const Verification = () => {
                 <Mail className="w-8 h-8 text-[#df2e38]" />
               </div>
               <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                Verify Your Email
+                Check Your Email
               </h2>
               <p className="text-gray-600 mb-6">
-                We've sent a verification link to
+                We've sent a secure sign-in link to
               </p>
                               <p className="text-[#df2e38] font-medium mb-6">{email}</p>
             </div>
@@ -144,7 +144,7 @@ const Verification = () => {
             ) : (
               <div className="space-y-6">
                 <p className="text-gray-600 text-center">
-                  Please check your email and click the verification link to activate your account.
+                  Please check your email and click the sign-in link to complete your registration.
                 </p>
                 
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -156,7 +156,7 @@ const Verification = () => {
                     </div>
                     <div className="text-sm text-blue-800">
                       <p className="font-medium mb-1">Check your email</p>
-                      <p>We've sent a verification link to your email address. Click the link to verify your account.</p>
+                      <p>We've sent a secure sign-in link to your email address. Click the link to complete your registration.</p>
                     </div>
                   </div>
                 </div>
@@ -170,7 +170,7 @@ const Verification = () => {
                     seconds={60}
                     onStart={handleResendEmail}
                     isActive={emailVerificationTimer}
-                    buttonText="Resend Verification Email"
+                    buttonText="Resend Sign-in Link"
                     disabledText="Resend in"
                     className="w-full"
                   />
