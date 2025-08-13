@@ -107,7 +107,7 @@ const Footer = () => {
               © {currentYear} Casa Hacienda de Tejeros. All rights reserved.
             </p>
             <div className="flex space-x-6 text-sm">
-              <Link to="/privacy" className="text-gray-400 hover:text-white transition-colors duration-200">
+              <Link to="/privacy-policy" className="text-gray-400 hover:text-white transition-colors duration-200">
                 Privacy Policy
               </Link>
               <Link to="/terms" className="text-gray-400 hover:text-white transition-colors duration-200">

@@ -28,6 +28,7 @@ import AdminDashboard from './components/AdminDashboard';
 import About from './pages/About';
 import Contact from './pages/Contact';
 import VerifyBooking from './pages/VerifyBooking';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 
 function App() {
   return (
@@ -147,6 +148,17 @@ function App() {
               <Navbar />
               <main>
                 <Contact />
+              </main>
+              <Footer />
+            </div>
+          } />
+          <Route path="/privacy-policy" element={
+            <div className="min-h-screen bg-gray-50">
+              <Header />
+              <WebsiteBanner />
+              <Navbar />
+              <main>
+                <PrivacyPolicy />
               </main>
               <Footer />
             </div>

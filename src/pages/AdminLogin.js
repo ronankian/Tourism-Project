@@ -68,7 +68,7 @@ const AdminLogin = () => {
           <div className="bg-white rounded-xl shadow-2xl p-8">
             <div className="text-center">
               <h2 className="text-3xl font-bold text-green-600 mb-2">Admin Access</h2>
-              <p className="text-gray-600">Enter the admin passkey to continue</p>
+              <p className="text-gray-600">Enter the admin passkey to continue</p>  
             </div>
 
             <form className="mt-8 space-y-6" onSubmit={handleSubmit}>

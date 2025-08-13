@@ -5,13 +5,13 @@ import { getStorage } from 'firebase/storage';
 
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyBtELHbkHKb5_0eDO-8A_2vZvV7CTjb9_0",
-  authDomain: "rosariotourism-9cb4b.firebaseapp.com",
-  projectId: "rosariotourism-9cb4b",
-  storageBucket: "rosariotourism-9cb4b.firebasestorage.app",
-  messagingSenderId: "448829964008",
-  appId: "1:448829964008:web:c595130df371491303d35d",
-  measurementId: "G-0D4GZZCP9J"
+  apiKey: "AIzaSyBwK7-CCscxlaaFlc5YYPf_5Hkn_Fz9fWo",
+  authDomain: "rosariotourismofficial.firebaseapp.com",
+  projectId: "rosariotourismofficial",
+  storageBucket: "rosariotourismofficial.firebasestorage.app",
+  messagingSenderId: "1040453156967",
+  appId: "1:1040453156967:web:74088803eb5ef7f0de54c2",
+  measurementId: "G-K4B0CFCP83"
 };
 
 // Initialize Firebase
