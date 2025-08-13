@@ -22,7 +22,7 @@ const Footer = () => {
           <div>
             <Link 
               to="/privacy-policy" 
-              className="text-white hover:text-gray-200 transition-colors duration-200 underline-none"
+              className="text-white hover:text-gray-200 transition-colors duration-200 no-underline"
             >
               Privacy Policy
             </Link>
