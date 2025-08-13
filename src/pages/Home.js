@@ -5,13 +5,14 @@ const Home = () => {
   return (
     <div className="min-h-screen">
       {/* Events/Advisories Section */}
-      <section className="h-60 bg-white">
-        <div className="h-full w-full">
-          <img 
-            src="/images/cavite-tourism-passport-banner.jpg" 
-            alt="Cavite Tourism Passport Banner" 
-            className="w-full h-full object-cover"
-          />
+      <section className="relative overflow-hidden" style={{ height: '270px' }}>
+        <img 
+          src="/images/cavite-tourism-passport-banner.jpg" 
+          alt="Cavite Tourism Passport Banner" 
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="relative z-10 container-custom text-center h-full flex items-center justify-center">
+          {/* Content can be added here later for admin editing */}
         </div>
       </section>
 

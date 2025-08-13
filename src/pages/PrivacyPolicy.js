@@ -6,16 +6,26 @@ const PrivacyPolicy = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <section className="bg-gradient-primary text-white py-20">
-        <div className="container-custom text-center">
+      <section className="relative py-20 overflow-hidden">
+        <div 
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: 'url(/images/casa-full.webp)' }}
+        ></div>
+        <div 
+          className="absolute inset-0"
+          style={{ 
+            background: 'linear-gradient(135deg, rgba(93, 156, 89, 0.8) 25%, rgba(223, 46, 56, 0.8) 100%)'
+          }}
+        ></div>
+        <div className="relative z-10 container-custom text-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
           >
-            <Shield className="w-16 h-16 mx-auto mb-6" />
-            <h1 className="text-5xl font-bold mb-6">Privacy Policy</h1>
-            <p className="text-xl max-w-2xl mx-auto">
+            <Shield className="w-16 h-16 mx-auto mb-6 drop-shadow-lg text-white" />
+            <h1 className="text-5xl font-bold mb-6 drop-shadow-lg text-white">Privacy Policy</h1>
+            <p className="text-xl max-w-2xl mx-auto drop-shadow-lg text-white">
               Your privacy and data protection are our top priorities at the Tourism Office of Rosario
             </p>
           </motion.div>
@@ -56,7 +66,7 @@ const PrivacyPolicy = () => {
           {/* What We Collect */}
           <div className="mb-8">
             <div className="flex items-center mb-4">
-              <Eye className="w-6 h-6 text-primary-600 mr-3" />
+              <Eye className="w-6 h-6 text-green-600 mr-3" />
               <h3 className="text-xl font-bold text-gray-900">What Information We Collect</h3>
             </div>
             <p className="text-gray-700 leading-relaxed mb-4">
@@ -65,42 +75,42 @@ const PrivacyPolicy = () => {
             <div className="bg-gray-50 rounded-lg p-6">
               <ul className="space-y-3">
                 <li className="flex items-start">
-                  <div className="w-2 h-2 bg-primary-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                  <div className="w-2 h-2 bg-green-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
                   <div>
                     <strong className="text-gray-900">Personal Identification:</strong>
                     <span className="text-gray-700"> First name, last name, and email address for account registration and tour bookings</span>
                   </div>
                 </li>
                 <li className="flex items-start">
-                  <div className="w-2 h-2 bg-primary-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                  <div className="w-2 h-2 bg-green-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
                   <div>
                     <strong className="text-gray-900">Contact Information:</strong>
                     <span className="text-gray-700"> Email address and phone number for booking confirmations and communication</span>
                   </div>
                 </li>
                 <li className="flex items-start">
-                  <div className="w-2 h-2 bg-primary-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                  <div className="w-2 h-2 bg-green-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
                   <div>
                     <strong className="text-gray-900">Booking Details:</strong>
                     <span className="text-gray-700"> Tour dates, preferred times, number of guests, special requests, visit purpose, and organization/school information</span>
                   </div>
                 </li>
                 <li className="flex items-start">
-                  <div className="w-2 h-2 bg-primary-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                  <div className="w-2 h-2 bg-green-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
                   <div>
                     <strong className="text-gray-900">Documentation:</strong>
                     <span className="text-gray-700"> Permission letters and authorization documents for institutional tours</span>
                   </div>
                 </li>
                 <li className="flex items-start">
-                  <div className="w-2 h-2 bg-primary-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                  <div className="w-2 h-2 bg-green-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
                   <div>
                     <strong className="text-gray-900">Correspondence:</strong>
                     <span className="text-gray-700"> Messages sent through our contact forms and inquiry submissions</span>
                   </div>
                 </li>
                 <li className="flex items-start">
-                  <div className="w-2 h-2 bg-primary-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                  <div className="w-2 h-2 bg-green-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
                   <div>
                     <strong className="text-gray-900">Technical Information:</strong>
                     <span className="text-gray-700"> Browser type, device information, and IP address for website functionality and security</span>
@@ -113,7 +123,7 @@ const PrivacyPolicy = () => {
           {/* How We Use Information */}
           <div className="mb-8">
             <div className="flex items-center mb-4">
-              <Users className="w-6 h-6 text-primary-600 mr-3" />
+              <Users className="w-6 h-6 text-green-600 mr-3" />
               <h3 className="text-xl font-bold text-gray-900">How We Use Your Information</h3>
             </div>
             <p className="text-gray-700 leading-relaxed mb-4">
@@ -122,33 +132,33 @@ const PrivacyPolicy = () => {
             <div className="bg-gray-50 rounded-lg p-6">
               <ul className="space-y-3">
                 <li className="flex items-start">
-                  <div className="w-2 h-2 bg-primary-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                  <div className="w-2 h-2 bg-green-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
                   <span className="text-gray-700"><strong>Tour Booking Management:</strong> Processing and confirming your tour reservations for Casa Hacienda de Tejeros and other Rosario tourism destinations</span>
                 </li>
                 <li className="flex items-start">
-                  <div className="w-2 h-2 bg-primary-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                  <div className="w-2 h-2 bg-green-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
                   <span className="text-gray-700"><strong>Communication:</strong> Sending booking confirmations, tour updates, and responding to your inquiries about Rosario tourism</span>
                 </li>
                 <li className="flex items-start">
-                  <div className="w-2 h-2 bg-primary-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                  <div className="w-2 h-2 bg-green-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
                   <span className="text-gray-700"><strong>Account Management:</strong> Creating and maintaining your user account for personalized tourism experiences</span>
                 </li>
                 <li className="flex items-start">
-                  <div className="w-2 h-2 bg-primary-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                  <div className="w-2 h-2 bg-green-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
                   <span className="text-gray-700"><strong>Service Improvement:</strong> Analyzing user preferences to enhance our tourism offerings and website functionality</span>
                 </li>
                 <li className="flex items-start">
-                  <div className="w-2 h-2 bg-primary-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                  <div className="w-2 h-2 bg-green-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
                   <span className="text-gray-700"><strong>Legal Compliance:</strong> Meeting requirements for visitor documentation and safety protocols</span>
                 </li>
                 <li className="flex items-start">
-                  <div className="w-2 h-2 bg-primary-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-                  <span className="text-gray-700"><strong>Tourism Promotion:</strong> Customizing content and recommendations based on your interests (with your consent)</span>
+                  <div className="w-2 h-2 bg-green-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                  <span className="text-gray-700"><strong>Tourism Promotion:</strong> Customizing content and recommendations based on your interests</span>
                 </li>
               </ul>
             </div>
-            <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-blue-800 font-medium">
+            <div className="mt-4 bg-green-50 border border-green-200 rounded-lg p-4">
+              <p className="text-green-800 font-medium">
                 <strong>Important:</strong> We will never sell, rent, or share your personal information with third parties for commercial purposes. Your data is used exclusively for tourism services provided by the Municipality of Rosario, Cavite.
               </p>
             </div>
@@ -157,7 +167,7 @@ const PrivacyPolicy = () => {
           {/* Data Security */}
           <div className="mb-8">
             <div className="flex items-center mb-4">
-              <Lock className="w-6 h-6 text-primary-600 mr-3" />
+              <Lock className="w-6 h-6 text-green-600 mr-3" />
               <h3 className="text-xl font-bold text-gray-900">Data Security and Protection</h3>
             </div>
             <p className="text-gray-700 leading-relaxed mb-4">
@@ -192,7 +202,7 @@ const PrivacyPolicy = () => {
           {/* Data Retention */}
           <div className="mb-8">
             <div className="flex items-center mb-4">
-              <FileText className="w-6 h-6 text-primary-600 mr-3" />
+              <FileText className="w-6 h-6 text-green-600 mr-3" />
               <h3 className="text-xl font-bold text-gray-900">Data Retention and Your Rights</h3>
             </div>
             <p className="text-gray-700 leading-relaxed mb-4">
@@ -229,8 +239,8 @@ const PrivacyPolicy = () => {
                 Our website uses minimal cookies and local storage to provide essential functionality such as:
               </p>
               <ul className="space-y-1 text-amber-800">
-                <li>• Maintaining your login session</li>
-                <li>• Remembering your booking preferences</li>
+                <li>• Temporarily storing booking drafts during email verification</li>
+                <li>• Remembering your booking preferences during the session</li>
                 <li>• Improving website performance</li>
                 <li>• Analyzing visitor patterns to enhance our services</li>
               </ul>
@@ -257,22 +267,23 @@ const PrivacyPolicy = () => {
           </div>
 
           {/* Contact Information */}
-          <div className="bg-primary-50 border border-primary-200 rounded-lg p-6">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-6">
             <div className="flex items-center mb-4">
-              <Mail className="w-6 h-6 text-primary-600 mr-3" />
-              <h3 className="text-xl font-bold text-primary-900">Contact Our Data Protection Officer</h3>
+              <Mail className="w-6 h-6 text-green-600 mr-3" />
+              <h3 className="text-xl font-bold text-green-900">Contact Us for Privacy Concerns</h3>
             </div>
-            <p className="text-primary-800 mb-4">
-              For any questions, concerns, or requests regarding your personal data and privacy rights, please contact our Data Protection Officer:
+            <p className="text-green-800 mb-4">
+              For any questions, concerns, or requests regarding your personal data and privacy rights, please contact the Municipal Tourism Office:
             </p>
-            <div className="space-y-2 text-primary-800">
-              <p><strong>Tourism Office of Rosario, Cavite</strong></p>
-              <p><strong>Email:</strong> dataprivacy.tourism@rosario.gov.ph</p>
-              <p><strong>Address:</strong> Municipal Tourism Office, Rosario, Cavite</p>
-              <p><strong>Phone:</strong> Contact through main tourism office</p>
+            <div className="space-y-2 text-green-800">
+              <p><strong>Municipal Tourism Office of Rosario, Cavite</strong></p>
+              <p><strong>Tourism Officer:</strong> Mr. Ruben R. Quinto</p>
+              <p><strong>Email:</strong> tourismoffice886@gmail.com</p>
+              <p><strong>Phone:</strong> (046) 886 9707</p>
+              <p><strong>Address:</strong> Casa Hacienda de Tejeros, Rosario, Cavite</p>
             </div>
             <div className="mt-4 bg-white rounded-lg p-4">
-              <p className="text-primary-900 font-medium">
+              <p className="text-green-900 font-medium">
                 We are committed to responding to your privacy concerns within 30 days and will work with you to resolve any data protection issues in accordance with the Data Privacy Act of 2012.
               </p>
             </div>

@@ -27,13 +27,23 @@ const News = () => {
     return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <section className="bg-gradient-to-r from-[#5d9c59] to-[#4a7c47] text-white py-20">
-        <div className="container-custom text-center">
+      <section className="relative py-20 overflow-hidden">
+        <div 
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: 'url(/images/casa-full.webp)' }}
+        ></div>
+        <div 
+          className="absolute inset-0"
+          style={{ 
+            background: 'linear-gradient(135deg, rgba(93, 156, 89, 0.8) 25%, rgba(223, 46, 56, 0.8) 100%)'
+          }}
+        ></div>
+        <div className="relative z-10 container-custom text-center text-white">
           <div className="flex items-center justify-center mb-4">
             <Facebook className="w-8 h-8 mr-3" />
-            <h1 className="text-5xl font-bold">Latest News</h1>
+            <h1 className="text-5xl font-bold drop-shadow-lg">Latest News</h1>
           </div>
-          <p className="text-xl max-w-2xl mx-auto">
+          <p className="text-xl max-w-2xl mx-auto drop-shadow-lg">
             Stay updated with the latest news, events, and announcements from Casa Hacienda de Tejeros Tourism Office
           </p>
         </div>

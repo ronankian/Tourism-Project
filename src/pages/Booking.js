@@ -180,10 +180,20 @@ const Booking = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <section className="bg-gradient-primary text-white py-20">
-        <div className="container-custom text-center">
-          <h1 className="text-5xl font-bold mb-6">Book Your Tour</h1>
-          <p className="text-xl max-w-2xl mx-auto">
+      <section className="relative py-20 overflow-hidden">
+        <div 
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: 'url(/images/casa-full.webp)' }}
+        ></div>
+        <div 
+          className="absolute inset-0"
+          style={{ 
+            background: 'linear-gradient(135deg, rgba(93, 156, 89, 0.8) 25%, rgba(223, 46, 56, 0.8) 100%)'
+          }}
+        ></div>
+        <div className="relative z-10 container-custom text-center text-white">
+          <h1 className="text-5xl font-bold mb-6 drop-shadow-lg">Book Your Tour</h1>
+          <p className="text-xl max-w-2xl mx-auto drop-shadow-lg">
             Choose from our carefully curated tour packages and experience the best of Rosario, Cavite
           </p>
         </div>
