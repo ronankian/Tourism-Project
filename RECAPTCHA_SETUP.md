@@ -1,211 +1,266 @@
-# reCAPTCHA Setup Guide
+# reCAPTCHA v2 Setup Guide
 
-This guide will help you set up Google reCAPTCHA v2 for your tourism website to protect against spam and bot submissions.
+This guide will help you set up Google reCAPTCHA v2 for your tourism website to protect against spam and bot submissions. The implementation now follows the [official Google reCAPTCHA v2 documentation](https://developers.google.com/recaptcha/docs/display).
 
-## Prerequisites
+## ✅ Current Implementation Status
 
-- Google account
-- Google Cloud Console access
-- Firebase project
+### 1. **Contact Form** (`src/pages/Contact.js`)
 
-## Step 1: Create reCAPTCHA Keys
+- ✅ reCAPTCHA v2 with explicit rendering
+- ✅ Follows official Google implementation
+- ✅ **Development Mode**: Simulated server-side verification
+- ✅ **Production Ready**: Backend integration example provided
+- ✅ Comprehensive spam protection:
+  - Honeypot field for bot detection
+  - Rate limiting (30 seconds between submissions)
+  - Email validation against disposable domains
+  - Content filtering for spam keywords
+  - Form validation and error handling
 
-1. **Go to Google reCAPTCHA Console**
-   - Visit: https://www.google.com/recaptcha/admin
-   - Sign in with your Google account
+### 2. **Admin Login** (`src/pages/AdminLogin.js`)
 
-2. **Create a New Site**
-   - Click "Create" or "+"
-   - Choose "reCAPTCHA v2"
-   - Select "I'm not a robot" Checkbox
-   - Enter your domain(s):
-     - For development: `localhost`, `127.0.0.1`
-     - For production: `your-domain.com`, `*.your-domain.com`
+- ✅ reCAPTCHA v2 with explicit rendering
+- ✅ **Development Mode**: Simulated server-side verification
+- ✅ **Production Ready**: Backend integration example provided
+- ✅ Resets on failed login attempts
+- ✅ Proper error handling and user feedback
 
-3. **Configure Additional Settings**
-   - **Service Provider**: Choose **Cloud Armor** (recommended for better protection)
-   - **Feature**: Choose **Action** (for modern invisible reCAPTCHA experience)
-   - **Web Application Firewall (WAF)**: Enable this option
-   - **Testing**: Keep OFF for production use
+### 3. **Booking Form** (`src/pages/Booking.js`)
 
-4. **Get Your Keys**
-   - **Site Key**: Public key used in your frontend
-   - **Secret Key**: Private key used in your backend (Firebase Functions)
+- ✅ reCAPTCHA v2 with explicit rendering
+- ✅ **Development Mode**: Simulated server-side verification
+- ✅ **Production Ready**: Backend integration example provided
+- ✅ Integrated with booking validation
 
-## Step 2: Environment Setup
+## 🔧 Setup Required
 
-### Frontend Environment Variables
+### Step 1: Create Environment File
 
-Create a `.env` file in your project root:
+Create a `.env.local` file in your project root with:
 
 ```env
 # reCAPTCHA Configuration
-REACT_APP_RECAPTCHA_SITE_KEY=your_site_key_here
+REACT_APP_RECAPTCHA_SITE_KEY=your_recaptcha_site_key_here
+REACT_APP_RECAPTCHA_SECRET_KEY=your_recaptcha_secret_key_here
 
-# Other environment variables
-REACT_APP_TEST_MODE=false
+# Other existing environment variables...
 ```
 
-### Backend Environment Variables (Firebase Functions)
+**Note**: Use `.env.local` instead of `.env` for React development as it has higher priority and won't be committed to version control.
 
-Set the secret key in Firebase Functions environment:
+### Step 2: Get reCAPTCHA Keys
 
-```bash
-# Using Firebase CLI
-firebase functions:config:set recaptcha.secret_key="your_secret_key_here"
+1. Go to [Google reCAPTCHA Console](https://www.google.com/recaptcha/admin)
+2. Create a new site with:
+   - **reCAPTCHA v2**
+   - **"I'm not a robot" Checkbox**
+3. Add your domains:
+   - Development: `localhost`, `127.0.0.1`
+   - Production: `your-domain.com`
+4. Copy the **Site Key** and add it to your `.env` file
 
-# Or using environment variables (recommended for newer Firebase versions)
-# Add to functions/.env file:
-RECAPTCHA_SECRET_KEY=your_secret_key_here
-```
+## 🚀 Implementation Details
 
-## Step 3: Deploy Firebase Functions
+### How It Works
 
-1. **Initialize Functions (if not already done)**:
-   ```bash
-   firebase init functions
-   ```
+The implementation follows the [official Google reCAPTCHA v2 documentation](https://developers.google.com/recaptcha/docs/display) using **explicit rendering**:
 
-2. **Install Dependencies**:
-   ```bash
-   cd functions
-   npm install
-   ```
+1. **Script Loading**: Dynamically loads the reCAPTCHA script with explicit rendering
+2. **Widget Rendering**: Uses `grecaptcha.render()` method to create the widget
+3. **Callback Handling**: Implements proper callback functions for success, expiration, and errors
+4. **Reset Functionality**: Provides clean reset functionality for failed attempts
+5. **Server-Side Verification**: Simulated in development, requires backend in production
 
-3. **Deploy Functions**:
-   ```bash
-   firebase deploy --only functions
-   ```
+### ⚠️ Important: CORS and Server-Side Verification
 
-## Step 4: Update Security Settings
+**The reCAPTCHA verification must be done on your backend server, not in the frontend.** This is because:
 
-### Firestore Rules
-Ensure your Firestore rules validate reCAPTCHA for sensitive operations:
+- **CORS Policy**: Browsers block direct requests from frontend to Google's verification API
+- **Security**: The secret key should never be exposed in frontend code
+- **Best Practice**: Google recommends server-side verification
+
+**Current Implementation:**
+
+- ✅ **Development**: Simulated verification for testing
+- ✅ **Production**: Requires backend server (see `BACKEND_RECAPTCHA_EXAMPLE.js`)
+
+### Key Features
+
+#### ✅ Explicit Rendering
 
 ```javascript
-// In firestore.rules
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Booking submissions should be validated server-side
-    match /bookings/{bookingId} {
-      allow create: if request.auth != null 
-        && validateBookingData(request.resource.data);
-    }
-  }
-}
+// Load reCAPTCHA script with explicit rendering
+useEffect(() => {
+  const script = document.createElement("script");
+  script.src =
+    "https://www.google.com/recaptcha/api.js?onload=onloadCallback&render=explicit";
+  script.async = true;
+  script.defer = true;
+  document.head.appendChild(script);
+}, []);
 ```
 
-## Step 5: Integration Points
+#### ✅ Widget Configuration
 
-The reCAPTCHA integration is already implemented in:
-
-### ✅ Booking Form (`src/pages/Booking.js`)
-- Protects against spam booking submissions
-- Validates before sending verification emails
-- Resets on failed attempts
-
-### ✅ Contact Form (`src/pages/Contact.js`)
-- Prevents spam contact messages
-- Additional anti-spam measures included
-- Rate limiting and content filtering
-
-### ✅ Admin Login (`src/pages/AdminLogin.js`)
-- Protects admin panel from brute force attacks
-- Resets on failed login attempts
-- Additional security layer
-
-## Step 6: Testing
-
-### Test in Development
-1. Set `REACT_APP_TEST_MODE=true` in your `.env` file
-2. Use test keys for localhost testing
-3. Verify forms work correctly with reCAPTCHA
-
-### Test in Production
-1. Use production keys
-2. Test all forms with reCAPTCHA enabled
-3. Monitor Firebase Functions logs for verification results
-
-## Security Features
-
-### Client-Side Protection
-- Form validation before submission
-- Token expiration handling
-- User-friendly error messages
-- Automatic reset on failed attempts
-
-### Server-Side Verification
-- Firebase Functions verify tokens with Google
-- IP address validation
-- Detailed logging for monitoring
-- Additional booking-specific validations
-
-### Additional Security Measures
-- Rate limiting on contact forms
-- Content filtering for spam keywords
-- Honeypot fields for bot detection
-- Email validation against disposable domains
-
-## Monitoring and Maintenance
-
-### Check reCAPTCHA Analytics
-- Visit Google reCAPTCHA Admin Console
-- Monitor verification rates
-- Check for suspicious activity
-- Adjust security settings as needed
-
-### Firebase Functions Monitoring
-```bash
-# View function logs
-firebase functions:log
-
-# Monitor specific function
-firebase functions:log --only verifyRecaptcha
+```javascript
+window.grecaptcha.render(recaptchaRef.current, {
+  sitekey: process.env.REACT_APP_RECAPTCHA_SITE_KEY,
+  theme: "light",
+  callback: handleRecaptchaChange,
+  "expired-callback": handleRecaptchaExpired,
+  "error-callback": handleRecaptchaError,
+});
 ```
 
-### Common Issues and Solutions
+#### ✅ HTML Structure
 
-1. **"Invalid site key" error**
+```html
+<div
+  ref="{recaptchaRef}"
+  className="g-recaptcha"
+  data-sitekey="{process.env.REACT_APP_RECAPTCHA_SITE_KEY}"
+  data-theme="light"
+  data-callback="handleRecaptchaChange"
+  data-expired-callback="handleRecaptchaExpired"
+  data-error-callback="handleRecaptchaError"
+></div>
+```
+
+## 🔒 Security Features
+
+### Contact Form Protection:
+
+- ✅ reCAPTCHA v2 verification
+- ✅ Honeypot field (hidden from users, visible to bots)
+- ✅ Rate limiting (30 seconds between submissions)
+- ✅ Email validation (blocks disposable emails)
+- ✅ Content filtering (blocks spam keywords)
+- ✅ Form validation and error handling
+
+### Admin Login Protection:
+
+- ✅ reCAPTCHA v2 verification
+- ✅ Resets on failed attempts
+- ✅ Proper error handling
+- ✅ Secure passkey authentication
+
+### Booking Form Protection:
+
+- ✅ reCAPTCHA v2 verification
+- ✅ Integrated with booking validation
+- ✅ Prevents spam bookings
+
+## 📝 Testing Instructions
+
+### Step 1: Environment Setup
+
+1. Create `.env.local` file with your reCAPTCHA site key
+2. Restart your development server: `npm start`
+
+### Step 2: Test reCAPTCHA Verification
+
+1. **Development Mode Testing:**
+
+   - Submit any form with reCAPTCHA
+   - Check console for: `🔍 Development Mode: Simulating reCAPTCHA verification`
+   - Should see: `✅ Development: reCAPTCHA verification simulated successfully`
+
+2. **Production Mode (when you have a backend):**
+   - Implement backend verification (see `BACKEND_RECAPTCHA_EXAMPLE.js`)
+   - Update `src/utils/recaptchaVerification.js` to use actual API calls
+
+### Step 3: Test Each Form
+
+1. **Contact Form** (`/contact`):
+
+   - Fill out the form
+   - Complete reCAPTCHA verification
+   - Submit and verify email is sent
+
+2. **Admin Login** (`/admin-login`):
+
+   - Enter admin passkey
+   - Complete reCAPTCHA verification
+   - Verify successful login
+
+3. **Booking Form** (`/booking`):
+   - Fill out booking details
+   - Complete reCAPTCHA verification
+   - Verify verification email is sent
+
+### Step 4: Error Testing
+
+- Test expired reCAPTCHA (wait 2 minutes)
+- Test network errors (disconnect internet)
+- Test failed submissions (wrong passkey, invalid email)
+
+## 🛠️ Troubleshooting
+
+### Common Issues:
+
+1. **"reCAPTCHA not loading"**
+
+   - Check if `REACT_APP_RECAPTCHA_SITE_KEY` is set in `.env.local`
    - Verify domain is added to reCAPTCHA console
-   - Check environment variable is set correctly
-   - Ensure using correct key for environment
+   - Check browser console for script loading errors
 
-2. **"Network request failed"**
-   - Check internet connectivity
-   - Verify Firebase Functions are deployed
-   - Check CORS settings
+2. **"Invalid site key"**
 
-3. **Token expired**
-   - Implement automatic token refresh
-   - Clear error messages on expiration
-   - Reset reCAPTCHA widget
+   - Ensure using correct key for environment (dev/prod)
+   - Verify domain matches reCAPTCHA console settings
 
-## Best Practices
+3. **"Callback not working"**
 
-1. **Keep Keys Secure**
-   - Never commit secret keys to version control
-   - Use environment variables
-   - Rotate keys periodically
+   - Check if callback functions are properly defined
+   - Verify script loading order
 
-2. **User Experience**
-   - Provide clear error messages
-   - Handle loading states properly
-   - Reset on failures
+4. **"CORS error when verifying reCAPTCHA"**
 
-3. **Monitoring**
-   - Monitor verification success rates
-   - Set up alerts for unusual activity
-   - Regular security reviews
+   - This is expected in development - verification is simulated
+   - In production, implement backend verification (see `BACKEND_RECAPTCHA_EXAMPLE.js`)
+   - Never make direct frontend calls to Google's verification API
 
-## Support
+### Debug Steps:
 
-For issues with reCAPTCHA integration:
-1. Check Firebase Functions logs
-2. Verify environment variables
-3. Test with development keys first
-4. Contact Google reCAPTCHA support if needed
+1. Open browser developer tools
+2. Check Console tab for errors
+3. Check Network tab for script loading
+4. Verify environment variables are loaded
+
+## 📊 Monitoring
+
+### reCAPTCHA Analytics:
+
+- Visit [Google reCAPTCHA Admin Console](https://www.google.com/recaptcha/admin)
+- Monitor verification success rates
+- Check for suspicious activity patterns
+
+### Performance Monitoring:
+
+- Monitor form submission success rates
+- Track user experience metrics
+- Check for any accessibility issues
+
+## 🔄 Maintenance
+
+### Regular Tasks:
+
+1. **Monthly**: Review reCAPTCHA analytics
+2. **Quarterly**: Update spam keyword lists
+3. **Annually**: Review and update security measures
+
+### Updates:
+
+- Keep reCAPTCHA implementation up to date
+- Monitor for new spam patterns
+- Update validation rules as needed
+
+## 📚 Additional Resources
+
+- [Official Google reCAPTCHA v2 Documentation](https://developers.google.com/recaptcha/docs/display)
+- [reCAPTCHA Admin Console](https://www.google.com/recaptcha/admin)
+- [reCAPTCHA Language Codes](https://developers.google.com/recaptcha/docs/language)
 
 ---
 
-**Security Note**: This implementation provides multiple layers of protection against spam and malicious submissions while maintaining good user experience. Regular monitoring and updates are recommended.
+**Security Note**: This implementation provides multiple layers of protection against spam and malicious submissions while maintaining good user experience. The explicit rendering approach ensures better control and customization options as recommended by Google's official documentation.

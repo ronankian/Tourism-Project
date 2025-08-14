@@ -1,12 +1,12 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/Header';
 import WebsiteBanner from '../components/WebsiteBanner';
-import ReCAPTCHA from 'react-google-recaptcha';
 import toast from 'react-hot-toast';
+import { verifyRecaptchaToken, isRecaptchaValid, getRecaptchaErrorMessage } from '../utils/recaptchaVerification';
 
 const AdminLogin = () => {
   const [passkey, setPasskey] = useState('');
@@ -16,17 +16,105 @@ const AdminLogin = () => {
   const [focusedField, setFocusedField] = useState('');
   const [recaptchaToken, setRecaptchaToken] = useState(null);
   const recaptchaRef = useRef(null);
+  const [recaptchaRendered, setRecaptchaRendered] = useState(false);
   const navigate = useNavigate();
   const { adminLoginWithPasskey } = useAuth();
 
-  // reCAPTCHA handlers
-  const handleRecaptchaChange = (token) => {
-    setRecaptchaToken(token);
-  };
+  // Define onload callback function (must be global)
+  useEffect(() => {
+    // Debug: Check if environment variable is loaded
+    console.log('reCAPTCHA Site Key:', process.env.REACT_APP_RECAPTCHA_SITE_KEY);
+    console.log('All environment variables:', process.env);
+    console.log('Environment variable type:', typeof process.env.REACT_APP_RECAPTCHA_SITE_KEY);
+    console.log('Environment variable length:', process.env.REACT_APP_RECAPTCHA_SITE_KEY?.length);
+    
+    // Check if site key is available
+    if (!process.env.REACT_APP_RECAPTCHA_SITE_KEY) {
+      console.error('❌ reCAPTCHA Site Key is missing! Please check your .env file.');
+      return;
+    }
+    
+    // Check if reCAPTCHA script is already loaded
+    if (window.grecaptcha) {
+      console.log('reCAPTCHA script already loaded');
+      // If script is loaded but widget not rendered, render it
+      if (!recaptchaRendered && recaptchaRef.current) {
+        window.onloadCallback();
+      }
+      return;
+    }
 
-  const handleRecaptchaExpired = () => {
-    setRecaptchaToken(null);
-    toast.warning('reCAPTCHA expired. Please verify again.');
+    // Define the onload callback function globally (as per official docs)
+    window.onloadCallback = function() {
+      if (window.grecaptcha && recaptchaRef.current && !recaptchaRendered) {
+        try {
+          // Check if element already has reCAPTCHA widget
+          const existingWidget = recaptchaRef.current.querySelector('.g-recaptcha');
+          if (existingWidget) {
+            console.log('reCAPTCHA widget already exists in element');
+            return;
+          }
+          
+          window.grecaptcha.render(recaptchaRef.current, {
+            'sitekey': process.env.REACT_APP_RECAPTCHA_SITE_KEY,
+            'theme': 'light',
+            'callback': (token) => {
+              console.log('reCAPTCHA success:', token);
+              setRecaptchaToken(token);
+            },
+            'expired-callback': () => {
+              console.log('reCAPTCHA expired');
+              setRecaptchaToken(null);
+              toast.warning('reCAPTCHA expired. Please verify again.');
+            },
+            'error-callback': () => {
+              console.log('reCAPTCHA error');
+              setRecaptchaToken(null);
+              toast.error('reCAPTCHA encountered an error. Please refresh the page and try again.');
+            }
+          });
+          setRecaptchaRendered(true);
+          console.log('✅ reCAPTCHA rendered successfully');
+        } catch (error) {
+          console.error('❌ Error rendering reCAPTCHA:', error);
+          // If it's an "already rendered" error, mark as rendered anyway
+          if (error.message.includes('already been rendered')) {
+            setRecaptchaRendered(true);
+            console.log('✅ reCAPTCHA already rendered, continuing...');
+          }
+        }
+      }
+    };
+
+    // Only load script if site key is available
+    let script = null;
+    if (process.env.REACT_APP_RECAPTCHA_SITE_KEY) {
+      console.log('✅ Loading reCAPTCHA script with site key:', process.env.REACT_APP_RECAPTCHA_SITE_KEY);
+      
+      // Create script element following official documentation
+      script = document.createElement('script');
+      script.src = 'https://www.google.com/recaptcha/api.js?onload=onloadCallback&render=explicit';
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    } else {
+      console.error('❌ Cannot load reCAPTCHA script - site key is missing!');
+    }
+
+    // Cleanup function
+    return () => {
+      if (script && script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+      // Don't delete window.onloadCallback to prevent issues with multiple renders
+    };
+  }, [recaptchaRendered]);
+
+  const resetRecaptcha = () => {
+    if (window.grecaptcha) {
+      window.grecaptcha.reset();
+      setRecaptchaToken(null);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -41,6 +129,16 @@ const AdminLogin = () => {
       return;
     }
 
+    // Verify reCAPTCHA token with Google's API
+    const verificationResult = await verifyRecaptchaToken(recaptchaToken);
+    if (!isRecaptchaValid(verificationResult)) {
+      const errorMessage = getRecaptchaErrorMessage(verificationResult);
+      toast.error(errorMessage);
+      resetRecaptcha();
+      setLoading(false);
+      return;
+    }
+
     try {
       const ok = adminLoginWithPasskey(passkey);
       if (ok) {
@@ -48,10 +146,7 @@ const AdminLogin = () => {
       } else {
         setError('Invalid passkey.');
         // Reset reCAPTCHA on failed login attempt
-        setRecaptchaToken(null);
-        if (recaptchaRef.current) {
-          recaptchaRef.current.reset();
-        }
+        resetRecaptcha();
       }
     } finally {
       setLoading(false);
@@ -142,13 +237,10 @@ const AdminLogin = () => {
 
               {/* reCAPTCHA */}
               <div className="flex justify-center">
-                <ReCAPTCHA
+                <div 
                   ref={recaptchaRef}
-                  sitekey={process.env.REACT_APP_RECAPTCHA_SITE_KEY}
-                  onChange={handleRecaptchaChange}
-                  onExpired={handleRecaptchaExpired}
-                  theme="light"
-                />
+                  id="recaptcha-container"
+                ></div>
               </div>
 
               <div>

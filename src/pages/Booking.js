@@ -7,7 +7,7 @@ import { storage, auth } from '../firebase';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { sendSignInLinkToEmail } from 'firebase/auth';
 import toast from 'react-hot-toast';
-import ReCAPTCHA from 'react-google-recaptcha';
+import { verifyRecaptchaToken, isRecaptchaValid, getRecaptchaErrorMessage } from '../utils/recaptchaVerification';
 // emailjs removed from the booking page (emails are sent post-verification)
 
 
@@ -137,16 +137,104 @@ const Booking = () => {
   const [agreedToProtocols, setAgreedToProtocols] = useState(false);
   const [recaptchaToken, setRecaptchaToken] = useState(null);
   const recaptchaRef = useRef(null);
+  const [recaptchaRendered, setRecaptchaRendered] = useState(false);
   const [showProtocolModal, setShowProtocolModal] = useState(false);
 
-  // reCAPTCHA handlers
-  const handleRecaptchaChange = (token) => {
-    setRecaptchaToken(token);
-  };
+  // Define onload callback function (must be global)
+  useEffect(() => {
+    // Debug: Check if environment variable is loaded
+    console.log('reCAPTCHA Site Key:', process.env.REACT_APP_RECAPTCHA_SITE_KEY);
+    console.log('All environment variables:', process.env);
+    console.log('Environment variable type:', typeof process.env.REACT_APP_RECAPTCHA_SITE_KEY);
+    console.log('Environment variable length:', process.env.REACT_APP_RECAPTCHA_SITE_KEY?.length);
+    
+    // Check if site key is available
+    if (!process.env.REACT_APP_RECAPTCHA_SITE_KEY) {
+      console.error('❌ reCAPTCHA Site Key is missing! Please check your .env file.');
+      return;
+    }
+    
+    // Check if reCAPTCHA script is already loaded
+    if (window.grecaptcha) {
+      console.log('reCAPTCHA script already loaded');
+      // If script is loaded but widget not rendered, render it
+      if (!recaptchaRendered && recaptchaRef.current) {
+        window.onloadCallback();
+      }
+      return;
+    }
 
-  const handleRecaptchaExpired = () => {
-    setRecaptchaToken(null);
-    toast.warning('reCAPTCHA expired. Please verify again.');
+    // Define the onload callback function globally (as per official docs)
+    window.onloadCallback = function() {
+      if (window.grecaptcha && recaptchaRef.current && !recaptchaRendered) {
+        try {
+          // Check if element already has reCAPTCHA widget
+          const existingWidget = recaptchaRef.current.querySelector('.g-recaptcha');
+          if (existingWidget) {
+            console.log('reCAPTCHA widget already exists in element');
+            return;
+          }
+          
+          window.grecaptcha.render(recaptchaRef.current, {
+            'sitekey': process.env.REACT_APP_RECAPTCHA_SITE_KEY,
+            'theme': 'light',
+            'callback': (token) => {
+              console.log('reCAPTCHA success:', token);
+              setRecaptchaToken(token);
+            },
+            'expired-callback': () => {
+              console.log('reCAPTCHA expired');
+              setRecaptchaToken(null);
+              toast.warning('reCAPTCHA expired. Please verify again.');
+            },
+            'error-callback': () => {
+              console.log('reCAPTCHA error');
+              setRecaptchaToken(null);
+              toast.error('reCAPTCHA encountered an error. Please refresh the page and try again.');
+            }
+          });
+          setRecaptchaRendered(true);
+          console.log('✅ reCAPTCHA rendered successfully');
+        } catch (error) {
+          console.error('❌ Error rendering reCAPTCHA:', error);
+          // If it's an "already rendered" error, mark as rendered anyway
+          if (error.message.includes('already been rendered')) {
+            setRecaptchaRendered(true);
+            console.log('✅ reCAPTCHA already rendered, continuing...');
+          }
+        }
+      }
+    };
+
+    // Only load script if site key is available
+    let script = null;
+    if (process.env.REACT_APP_RECAPTCHA_SITE_KEY) {
+      console.log('✅ Loading reCAPTCHA script with site key:', process.env.REACT_APP_RECAPTCHA_SITE_KEY);
+      
+      // Create script element following official documentation
+      script = document.createElement('script');
+      script.src = 'https://www.google.com/recaptcha/api.js?onload=onloadCallback&render=explicit';
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    } else {
+      console.error('❌ Cannot load reCAPTCHA script - site key is missing!');
+    }
+
+    // Cleanup function
+    return () => {
+      if (script && script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+      // Don't delete window.onloadCallback to prevent issues with multiple renders
+    };
+  }, [recaptchaRendered]);
+
+  const resetRecaptcha = () => {
+    if (window.grecaptcha) {
+      window.grecaptcha.reset();
+      setRecaptchaToken(null);
+    }
   };
 
     const TEST_MODE = String(process.env.REACT_APP_TEST_MODE).toLowerCase() === 'true';
@@ -168,6 +256,15 @@ const Booking = () => {
     // reCAPTCHA validation
     if (!recaptchaToken) {
       toast.error('Please complete the reCAPTCHA verification.');
+      return;
+    }
+
+    // Verify reCAPTCHA token with Google's API
+    const verificationResult = await verifyRecaptchaToken(recaptchaToken);
+    if (!isRecaptchaValid(verificationResult)) {
+      const errorMessage = getRecaptchaErrorMessage(verificationResult);
+      toast.error(errorMessage);
+      resetRecaptcha();
       return;
     }
     if (!bookingData.time) {
@@ -241,10 +338,7 @@ const Booking = () => {
         setShowVerificationMessage(true);
         
         // Reset reCAPTCHA
-        setRecaptchaToken(null);
-        if (recaptchaRef.current) {
-          recaptchaRef.current.reset();
-        }
+        resetRecaptcha();
       } else {
         // Production: upload attachments first, then send verification email
         let attachments = [];
@@ -271,10 +365,7 @@ const Booking = () => {
         setShowVerificationMessage(true);
         
         // Reset reCAPTCHA
-        setRecaptchaToken(null);
-        if (recaptchaRef.current) {
-          recaptchaRef.current.reset();
-        }
+        resetRecaptcha();
       }
     } catch (error) {
       console.error('Error submitting booking:', error);
@@ -885,13 +976,10 @@ const Booking = () => {
 
                 {/* reCAPTCHA */}
                 <div className="flex justify-center">
-                  <ReCAPTCHA
+                  <div 
                     ref={recaptchaRef}
-                    sitekey={process.env.REACT_APP_RECAPTCHA_SITE_KEY}
-                    onChange={handleRecaptchaChange}
-                    onExpired={handleRecaptchaExpired}
-                    theme="light"
-                  />
+                    id="recaptcha-container"
+                  ></div>
                 </div>
 
                  {duplicateMessage ? (

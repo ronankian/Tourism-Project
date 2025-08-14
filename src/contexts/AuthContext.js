@@ -18,7 +18,7 @@ export const AuthProvider = ({ children }) => {
 
   // Admin authentication with passkey
   const adminLoginWithPasskey = (passkey) => {
-    const adminPasskey = "TourismOffice2024!"; // In a real app, this would be more secure
+    const adminPasskey = "Casahacienda1897";
     
     if (passkey === adminPasskey) {
       setAdminAuthenticated(true);
