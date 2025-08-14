@@ -17,18 +17,23 @@ const PrivacyPolicy = () => {
             background: 'linear-gradient(135deg, rgba(93, 156, 89, 0.8) 25%, rgba(223, 46, 56, 0.8) 100%)'
           }}
         ></div>
-        <div className="relative z-10 container-custom text-center">
-          <motion.div
+        <div className="relative z-10 container-custom text-center text-white">
+          <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
+            className="text-5xl font-bold mb-6 drop-shadow-lg"
           >
-            <Shield className="w-16 h-16 mx-auto mb-6 drop-shadow-lg text-white" />
-            <h1 className="text-5xl font-bold mb-6 drop-shadow-lg text-white">Privacy Policy</h1>
-            <p className="text-xl max-w-2xl mx-auto drop-shadow-lg text-white">
-              Your privacy and data protection are our top priorities at the Tourism Office of Rosario
-            </p>
-          </motion.div>
+            Privacy Policy
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="text-xl max-w-3xl mx-auto drop-shadow-lg"
+          >
+            Your privacy and data protection are our top priorities at the Tourism Office of Rosario, Cavite
+          </motion.p>
         </div>
       </section>
 

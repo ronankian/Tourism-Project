@@ -2,28 +2,20 @@ import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
+import { ContactProvider } from './contexts/ContactContext';
+import { bookingSettingsService } from './services/bookingSettingsService';
 import Header from './components/Header';
 import WebsiteBanner from './components/WebsiteBanner';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
-import AuthActionHandler from './components/AuthActionHandler';
 import Home from './pages/Home';
 import Destinations from './pages/Destinations';
 import DestinationDetail from './pages/DestinationDetail';
 import Booking from './pages/Booking';
 import News from './pages/News';
-import Login from './pages/Login';
-// Removed Register import as registration is disabled
-// import Register from './pages/Register';
 import AdminLogin from './pages/AdminLogin';
-import Verification from './pages/Verification';
 import { useAuth } from './contexts/AuthContext';
-
-import PasswordReset from './pages/PasswordReset';
-import NewPassword from './pages/NewPassword';
-import PasswordResetSuccess from './pages/PasswordResetSuccess';
 import FirebaseActionRedirect from './pages/FirebaseActionRedirect';
-import Dashboard from './pages/Dashboard';
 import AdminDashboard from './components/AdminDashboard';
 import About from './pages/About';
 import Contact from './pages/Contact';
@@ -31,23 +23,20 @@ import VerifyBooking from './pages/VerifyBooking';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 
 function App() {
+  // Initialize automatic maintenance scheduler
+  useEffect(() => {
+    // Start the maintenance scheduler that runs every minute
+    bookingSettingsService.startMaintenanceScheduler(1);
+  }, []);
+
   return (
     <Router>
       <AuthProvider>
-        <AuthActionHandler />
-        <Routes>
-          {/* Authentication routes - without navbar/footer */}
-          <Route path="/login" element={<Login />} />
-          {/* Registration disabled */}
-          {/* <Route path="/register" element={<Register />} /> */}
+        <ContactProvider>
+          <Routes>
           {/* Admin access route - passkey-only */}
           <Route path="/admin-login" element={<AdminLogin />} />
-          <Route path="/verification" element={<Verification />} />
           <Route path="/verify-booking" element={<VerifyBooking />} />
-
-          <Route path="/reset-password" element={<PasswordReset />} />
-          <Route path="/new-password" element={<NewPassword />} />
-          <Route path="/password-reset-success" element={<PasswordResetSuccess />} />
           <Route path="/__/auth/action" element={<FirebaseActionRedirect />} />
           <Route path="/firebase-action" element={<FirebaseActionRedirect />} />
           
@@ -107,17 +96,7 @@ function App() {
               <Footer />
             </div>
           } />
-          <Route path="/dashboard" element={
-            <div className="min-h-screen bg-gray-50">
-              <Header />
-              <WebsiteBanner />
-              <Navbar />
-              <main>
-                <Dashboard />
-              </main>
-              <Footer />
-            </div>
-          } />
+
           <Route path="/admin" element={
             <div className="min-h-screen bg-gray-50">
               <Header />
@@ -174,6 +153,7 @@ function App() {
             },
           }}
         />
+        </ContactProvider>
       </AuthProvider>
     </Router>
   );

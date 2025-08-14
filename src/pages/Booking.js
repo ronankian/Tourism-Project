@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Clock, Mail } from 'lucide-react';
+import { Users, Clock, Mail, Wrench, CheckCircle, XCircle } from 'lucide-react';
 import { bookingService } from '../services/bookingService';
+import { bookingSettingsService } from '../services/bookingSettingsService';
 import { storage, auth } from '../firebase';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { sendSignInLinkToEmail } from 'firebase/auth';
 import toast from 'react-hot-toast';
+import ReCAPTCHA from 'react-google-recaptcha';
 // emailjs removed from the booking page (emails are sent post-verification)
 
 
@@ -24,38 +26,128 @@ const Booking = () => {
     schoolOrOrganizationName: ''
   });
 
-  const packages = [
-    {
-      id: 1,
-      name: 'Small Group Tour',
-      description: 'Perfect for individuals, couples, families, or small gatherings looking for a more personal experience.',
-      price: 'Free',
-      duration: 'Morning: 8:00 AM - 12:00 PM Afternoon: 1:00 PM - 5:00 PM',
-      maxGuests: 20,
-      showPerPerson: false
-    },
-    {
-      id: 2,
-      name: 'Organization & Institutional Tour',
-      description: 'Designed for schools, offices, and cultural organizations hosting heritage-related visits or functions.',
-      price: 'Free',
-      duration: 'Morning: 8:00 AM - 12:00 PM Afternoon: 1:00 PM - 5:00 PM',
-      hasNoLimit: true,
-      showPerPerson: false,
-      prerequisites: [
-        'Letter of Permission',
-        'Authorization from School Officials et. al.',
-        'Confirm and set intended visit schedule'
-      ]
+  // Booking settings state
+  const [bookingSettings, setBookingSettings] = useState(null);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [maintenanceStatus, setMaintenanceStatus] = useState(null);
+  const [dailyLimits, setDailyLimits] = useState({
+    smallGroupTour: { allowed: true, currentCount: 0, limit: null, remaining: null },
+    organizationTour: { allowed: true, currentCount: 0, limit: null, remaining: null }
+  });
+
+  // Load booking settings on component mount
+  useEffect(() => {
+    const loadBookingSettings = async () => {
+      try {
+        setSettingsLoading(true);
+        const settings = await bookingSettingsService.getBookingSettings();
+        setBookingSettings(settings);
+        
+        // Check maintenance mode status
+        const maintenanceCheck = bookingSettingsService.checkMaintenanceMode(settings);
+        setMaintenanceStatus(maintenanceCheck);
+        
+        // Daily limits will be loaded when date is selected
+      } catch (error) {
+        console.error('Error loading booking settings:', error);
+        // If settings fail to load, use default settings
+        setBookingSettings({
+          smallGroupTourEnabled: true,
+          organizationTourEnabled: true,
+          specialRequestsEnabled: true,
+          attachmentsEnabled: true,
+          maintenanceMode: { enabled: false }
+        });
+        setMaintenanceStatus({ inMaintenance: false });
+      } finally {
+        setSettingsLoading(false);
+      }
+    };
+
+    loadBookingSettings();
+  }, []);
+
+  // Reload daily limits when date changes
+  useEffect(() => {
+    const loadDailyLimits = async (selectedDate = null) => {
+      try {
+        const targetDate = selectedDate || bookingData.date || new Date().toISOString().split('T')[0];
+        
+        const [smallGroupCheck, organizationCheck] = await Promise.all([
+          bookingSettingsService.checkDailyBookingLimit('smallGroupTour', targetDate),
+          bookingSettingsService.checkDailyBookingLimit('organizationTour', targetDate)
+        ]);
+
+        setDailyLimits({
+          smallGroupTour: smallGroupCheck,
+          organizationTour: organizationCheck
+        });
+      } catch (error) {
+        console.error('Error loading daily limits:', error);
+        // Keep default values if loading fails
+      }
+    };
+
+    if (bookingData.date && bookingSettings) {
+      loadDailyLimits(bookingData.date);
     }
-  ];
+  }, [bookingData.date, bookingSettings]);
+
+  // Dynamic packages based on admin settings
+  const getAvailablePackages = () => {
+    if (!bookingSettings) return [];
+    
+    const allPackages = [
+      {
+        id: 1,
+        name: 'Small Group Tour',
+        description: 'Perfect for individuals, couples, families, or small gatherings looking for a more personal experience.',
+        price: 'Free',
+        duration: 'Morning: 8:00 AM - 12:00 PM Afternoon: 1:00 PM - 5:00 PM',
+        maxGuests: 20,
+        showPerPerson: false,
+        enabled: bookingSettings.smallGroupTourEnabled
+      },
+      {
+        id: 2,
+        name: 'Organization & Institutional Tour',
+        description: 'Designed for schools, offices, and cultural organizations hosting heritage-related visits or functions.',
+        price: 'Free',
+        duration: 'Morning: 8:00 AM - 12:00 PM Afternoon: 1:00 PM - 5:00 PM',
+        hasNoLimit: true,
+        showPerPerson: false,
+        enabled: bookingSettings.organizationTourEnabled,
+        prerequisites: [
+          'Letter of Permission',
+          'Authorization from School Officials et. al.',
+          'Confirm and set intended visit schedule'
+        ]
+      }
+    ];
+
+    return allPackages.filter(pkg => pkg.enabled);
+  };
+
+  const packages = getAvailablePackages();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showVerificationMessage, setShowVerificationMessage] = useState(false);
   const [duplicateMessage, setDuplicateMessage] = useState('');
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [agreedToProtocols, setAgreedToProtocols] = useState(false);
+  const [recaptchaToken, setRecaptchaToken] = useState(null);
+  const recaptchaRef = useRef(null);
   const [showProtocolModal, setShowProtocolModal] = useState(false);
+
+  // reCAPTCHA handlers
+  const handleRecaptchaChange = (token) => {
+    setRecaptchaToken(token);
+  };
+
+  const handleRecaptchaExpired = () => {
+    setRecaptchaToken(null);
+    toast.warning('reCAPTCHA expired. Please verify again.');
+  };
 
     const TEST_MODE = String(process.env.REACT_APP_TEST_MODE).toLowerCase() === 'true';
       
@@ -72,6 +164,12 @@ const Booking = () => {
       toast.error('Please agree to the Casa Hacienda protocols');
       return;
     }
+    
+    // reCAPTCHA validation
+    if (!recaptchaToken) {
+      toast.error('Please complete the reCAPTCHA verification.');
+      return;
+    }
     if (!bookingData.time) {
       toast.error('Please select a preferred time');
       return;
@@ -86,6 +184,21 @@ const Booking = () => {
     }
 
     setIsSubmitting(true);
+
+    // Check daily booking limits before proceeding
+    try {
+      const tourType = selectedPackage.name === 'Small Group Tour' ? 'smallGroupTour' : 'organizationTour';
+      const limitCheck = await bookingSettingsService.checkDailyBookingLimit(tourType, bookingData.date);
+      
+      if (!limitCheck.allowed && !limitCheck.error) {
+        toast.error(`Sorry, the ${selectedPackage.name} is fully booked for ${bookingData.date}. Only ${limitCheck.limit} bookings are allowed per day.`);
+        setIsSubmitting(false);
+        return;
+      }
+    } catch (error) {
+      console.error('Error checking daily booking limit:', error);
+      // Continue with booking if limit check fails - don't block legitimate bookings
+    }
 
     try {
       // Duplicate check before doing anything
@@ -126,10 +239,16 @@ const Booking = () => {
         await sendBookingVerificationEmail(bookingDataToSubmit);
         toast.success('Booking verification email sent (Test Mode). Please check your email and click the verification link.');
         setShowVerificationMessage(true);
+        
+        // Reset reCAPTCHA
+        setRecaptchaToken(null);
+        if (recaptchaRef.current) {
+          recaptchaRef.current.reset();
+        }
       } else {
         // Production: upload attachments first, then send verification email
         let attachments = [];
-        if (attachedFiles.length > 0) {
+        if (bookingSettings?.attachmentsEnabled && attachedFiles.length > 0) {
           const now = Date.now();
           const uploads = attachedFiles.map(async (file, index) => {
             const path = `booking-attachments/${now}-${index}-${file.name}`;
@@ -150,6 +269,12 @@ const Booking = () => {
         await sendBookingVerificationEmail({ ...bookingDataToSubmit, attachments });
         toast.success('Booking verification email sent! Please check your email and click the verification link to complete your booking.');
         setShowVerificationMessage(true);
+        
+        // Reset reCAPTCHA
+        setRecaptchaToken(null);
+        if (recaptchaRef.current) {
+          recaptchaRef.current.reset();
+        }
       }
     } catch (error) {
       console.error('Error submitting booking:', error);
@@ -177,6 +302,91 @@ const Booking = () => {
     await sendSignInLinkToEmail(auth, bookingData.email, actionCodeSettings);
   };
 
+  // Show loading state while checking settings
+  if (settingsLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#5d9c59] mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading booking system...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show maintenance mode if active
+  if (maintenanceStatus?.inMaintenance) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <section className="relative py-20 overflow-hidden">
+          <div 
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: 'url(/images/casa-full.webp)' }}
+          ></div>
+          <div 
+            className="absolute inset-0"
+            style={{ 
+              background: 'linear-gradient(135deg, rgba(93, 156, 89, 0.8) 25%, rgba(223, 46, 56, 0.8) 100%)'
+            }}
+          ></div>
+          <div className="relative z-10 container-custom text-center text-white">
+            <motion.h1
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+              className="text-5xl font-bold mb-6 drop-shadow-lg"
+            >
+              Booking System Maintenance
+            </motion.h1>
+            <motion.p
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="text-xl max-w-3xl mx-auto drop-shadow-lg"
+            >
+              We're currently performing system maintenance
+            </motion.p>
+          </div>
+        </section>
+
+        <div className="container-custom py-12">
+          <div className="max-w-2xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="bg-white rounded-lg p-8 shadow-sm text-center"
+            >
+              <div className="flex justify-center mb-6">
+                <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center">
+                  <Wrench className="w-8 h-8 text-orange-600" />
+                </div>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">System Under Maintenance</h2>
+              <p className="text-gray-600 mb-6">
+                {maintenanceStatus.message || 'The booking system is temporarily under maintenance. Please try again later.'}
+              </p>
+              {maintenanceStatus.endTime && (
+                <p className="text-sm text-gray-500">
+                  Expected to resume: {new Date(maintenanceStatus.endTime).toLocaleString()}
+                </p>
+              )}
+              <div className="mt-8 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                <p className="text-sm text-gray-700">
+                  <span className="font-semibold">Need immediate assistance?</span> Contact us at
+                  {' '}<a href="tel:+63468869707" className="text-primary-600 hover:underline">(046) 886 9707</a>
+                  {' '}or{' '}
+                  <a href="mailto:tourismoffice886@gmail.com" className="text-primary-600 hover:underline">tourismoffice886@gmail.com</a>.
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -192,10 +402,22 @@ const Booking = () => {
           }}
         ></div>
         <div className="relative z-10 container-custom text-center text-white">
-          <h1 className="text-5xl font-bold mb-6 drop-shadow-lg">Book Your Tour</h1>
-          <p className="text-xl max-w-2xl mx-auto drop-shadow-lg">
+          <motion.h1
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="text-5xl font-bold mb-6 drop-shadow-lg"
+          >
+            Book Your Tour
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="text-xl max-w-3xl mx-auto drop-shadow-lg"
+          >
             Choose from our carefully curated tour packages and experience the best of Rosario, Cavite
-          </p>
+          </motion.p>
         </div>
       </section>
 
@@ -205,28 +427,37 @@ const Booking = () => {
           <div className="space-y-6">
             <h2 className="text-3xl font-bold text-gray-900 mb-6">Tour Options</h2>
             
-            {packages.map((pkg, index) => (
-              <motion.div
-                key={pkg.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                className={`bg-white rounded-lg p-6 shadow-sm border-2 cursor-pointer transition-all ${
-                  selectedPackage?.id === pkg.id 
-                    ? 'border-primary-500 bg-primary-50' 
-                    : 'border-gray-200 hover:border-primary-300'
-                }`}
-                onClick={() => {
-                  setSelectedPackage(pkg);
-                  // Adjust guest count if switching to a package with lower limits
-                  if (!pkg.hasNoLimit && bookingData.guests > (pkg.maxGuests || 20)) {
-                    setBookingData({
-                      ...bookingData,
-                      guests: pkg.maxGuests || 20
-                    });
-                  }
-                }}
-              >
+                          {packages.map((pkg, index) => {
+                const tourType = pkg.name === 'Small Group Tour' ? 'smallGroupTour' : 'organizationTour';
+                const limitStatus = dailyLimits[tourType];
+                const isFullyBooked = !limitStatus.allowed && limitStatus.limit !== null;
+                
+                return (
+                  <motion.div
+                    key={pkg.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                    className={`bg-white rounded-lg p-6 shadow-sm border-2 transition-all ${
+                      isFullyBooked 
+                        ? 'border-red-200 bg-red-50 cursor-not-allowed opacity-75' 
+                        : selectedPackage?.id === pkg.id 
+                          ? 'border-primary-500 bg-primary-50 cursor-pointer' 
+                          : 'border-gray-200 hover:border-primary-300 cursor-pointer'
+                    }`}
+                    onClick={() => {
+                      if (!isFullyBooked) {
+                        setSelectedPackage(pkg);
+                        // Adjust guest count if switching to a package with lower limits
+                        if (!pkg.hasNoLimit && bookingData.guests > (pkg.maxGuests || 20)) {
+                          setBookingData({
+                            ...bookingData,
+                            guests: pkg.maxGuests || 20
+                          });
+                        }
+                      }
+                    }}
+                  >
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <h3 className="text-xl font-bold text-gray-900 mb-2">{pkg.name}</h3>
@@ -267,8 +498,38 @@ const Booking = () => {
                     </ul>
                   </div>
                 )}
+
+                {/* Booking Availability Status */}
+                {bookingData.date && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    {isFullyBooked ? (
+                      <div className="flex items-center space-x-2 text-red-600">
+                        <XCircle className="w-4 h-4" />
+                        <span className="text-sm font-medium">
+                          Fully Booked for {new Date(bookingData.date).toLocaleDateString()}
+                        </span>
+                      </div>
+                    ) : limitStatus.limit !== null ? (
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center space-x-2 text-green-600">
+                          <CheckCircle className="w-4 h-4" />
+                          <span className="font-medium">Available</span>
+                        </div>
+                        <span className="text-gray-600">
+                          {limitStatus.remaining} of {limitStatus.limit} slots remaining
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center space-x-2 text-green-600">
+                        <CheckCircle className="w-4 h-4" />
+                        <span className="text-sm font-medium">Available (No daily limit)</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </motion.div>
-            ))}
+                );
+              })}
           </div>
 
           {/* Booking Form */}
@@ -512,38 +773,42 @@ const Booking = () => {
                   </div>
                 )}
 
-                <div>
-                  <label htmlFor="specialRequests" className="block text-sm font-medium text-gray-700 mb-2">
-                    Special Requests (Optional)
-                  </label>
-                  <textarea
-                    id="specialRequests"
-                    rows="4"
-                    value={bookingData.specialRequests}
-                    onChange={(e) => setBookingData({...bookingData, specialRequests: e.target.value})}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    placeholder="Any special requirements or requests..."
-                  />
-                </div>
+                {bookingSettings?.specialRequestsEnabled && (
+                  <div>
+                    <label htmlFor="specialRequests" className="block text-sm font-medium text-gray-700 mb-2">
+                      Special Requests (Optional)
+                    </label>
+                    <textarea
+                      id="specialRequests"
+                      rows="4"
+                      value={bookingData.specialRequests}
+                      onChange={(e) => setBookingData({...bookingData, specialRequests: e.target.value})}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      placeholder="Any special requirements or requests..."
+                    />
+                  </div>
+                )}
 
                 {/* Attachments */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Attach Documents (Optional)
-                  </label>
-                  <input
-                    type="file"
-                    multiple
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.txt,.csv"
-                    onChange={(e) => setAttachedFiles(Array.from(e.target.files || []))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  />
-                  {attachedFiles.length > 0 && (
-                    <div className="mt-2 text-sm text-gray-600">
-                      {attachedFiles.length} file(s) selected
-                    </div>
-                  )}
-                </div>
+                {bookingSettings?.attachmentsEnabled && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Attach Documents (Optional)
+                    </label>
+                    <input
+                      type="file"
+                      multiple
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.txt,.csv"
+                      onChange={(e) => setAttachedFiles(Array.from(e.target.files || []))}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    />
+                    {attachedFiles.length > 0 && (
+                      <div className="mt-2 text-sm text-gray-600">
+                        {attachedFiles.length} file(s) selected
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Protocols intro emphasis */}
                 <div className="p-4 rounded-lg border border-yellow-300 bg-yellow-50 text-gray-800">
@@ -618,6 +883,17 @@ const Booking = () => {
                   </div>
                 )}
 
+                {/* reCAPTCHA */}
+                <div className="flex justify-center">
+                  <ReCAPTCHA
+                    ref={recaptchaRef}
+                    sitekey={process.env.REACT_APP_RECAPTCHA_SITE_KEY}
+                    onChange={handleRecaptchaChange}
+                    onExpired={handleRecaptchaExpired}
+                    theme="light"
+                  />
+                </div>
+
                  {duplicateMessage ? (
                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
                      <Mail className="w-8 h-8 text-red-600 mx-auto mb-2" />
@@ -625,20 +901,20 @@ const Booking = () => {
                      <p className="text-red-700 mb-4">{duplicateMessage}</p>
                    </div>
                  ) : showVerificationMessage ? (
-                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-                     <Mail className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                     <h3 className="text-lg font-semibold text-blue-800 mb-2">Step 1 Complete - Email Verification Required!</h3>
-                     <p className="text-blue-700 mb-4">
+                   <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 text-center">
+                     <Mail className="w-8 h-8 text-primary-600 mx-auto mb-2" />
+                     <h3 className="text-lg font-semibold text-primary-800 mb-2">Step 1 Complete - Email Verification Required!</h3>
+                     <p className="text-primary-700 mb-4">
                        We've sent a verification email to <strong>{bookingData.email}</strong>. Please check your email and click the verification link to complete your booking and receive your permission letter.
                      </p>
-                     <p className="text-sm text-blue-600">
+                     <p className="text-sm text-primary-600">
                        If you don't see the email, check your spam folder. The verification link will expire in 24 hours.
                      </p>
                    </div>
                  ) : (
                   <button
                     type="submit"
-                    disabled={!selectedPackage || isSubmitting || !(() => {
+                    disabled={!selectedPackage || isSubmitting || !recaptchaToken || !(() => {
                       // Check all required fields
                       const basicFieldsFilled = bookingData.name && 
                                                bookingData.email && 

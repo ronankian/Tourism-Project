@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/Header';
 import WebsiteBanner from '../components/WebsiteBanner';
+import ReCAPTCHA from 'react-google-recaptcha';
+import toast from 'react-hot-toast';
 
 const AdminLogin = () => {
   const [passkey, setPasskey] = useState('');
@@ -12,19 +14,44 @@ const AdminLogin = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [focusedField, setFocusedField] = useState('');
+  const [recaptchaToken, setRecaptchaToken] = useState(null);
+  const recaptchaRef = useRef(null);
   const navigate = useNavigate();
   const { adminLoginWithPasskey } = useAuth();
+
+  // reCAPTCHA handlers
+  const handleRecaptchaChange = (token) => {
+    setRecaptchaToken(token);
+  };
+
+  const handleRecaptchaExpired = () => {
+    setRecaptchaToken(null);
+    toast.warning('reCAPTCHA expired. Please verify again.');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+
+    // reCAPTCHA validation
+    if (!recaptchaToken) {
+      toast.error('Please complete the reCAPTCHA verification.');
+      setLoading(false);
+      return;
+    }
+
     try {
       const ok = adminLoginWithPasskey(passkey);
       if (ok) {
         navigate('/admin');
       } else {
         setError('Invalid passkey.');
+        // Reset reCAPTCHA on failed login attempt
+        setRecaptchaToken(null);
+        if (recaptchaRef.current) {
+          recaptchaRef.current.reset();
+        }
       }
     } finally {
       setLoading(false);
@@ -113,10 +140,21 @@ const AdminLogin = () => {
                 </div>
               )}
 
+              {/* reCAPTCHA */}
+              <div className="flex justify-center">
+                <ReCAPTCHA
+                  ref={recaptchaRef}
+                  sitekey={process.env.REACT_APP_RECAPTCHA_SITE_KEY}
+                  onChange={handleRecaptchaChange}
+                  onExpired={handleRecaptchaExpired}
+                  theme="light"
+                />
+              </div>
+
               <div>
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || !recaptchaToken}
                   className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? 'Checking…' : 'Enter Dashboard'}

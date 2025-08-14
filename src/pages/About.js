@@ -1,15 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MapPin, Users, Calendar, Award } from 'lucide-react';
+
 
 const About = () => {
-  const stats = [
-    { number: '50+', label: 'Years of History', icon: Calendar },
-    { number: '100K+', label: 'Happy Visitors', icon: Users },
-    { number: '20+', label: 'Tourist Spots', icon: MapPin },
-    { number: '95%', label: 'Satisfaction Rate', icon: Award }
-  ];
 
   return (
     <div className="min-h-screen">
@@ -45,158 +39,175 @@ const About = () => {
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="section-padding bg-white">
+      {/* Mission & Vision */}
+      <section className="section-padding bg-gradient-to-br from-gray-50 to-green-50">
         <div className="container-custom">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="text-center"
-              >
-                <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <stat.icon className="w-8 h-8 text-primary-600" />
-                </div>
-                <div className="text-3xl font-bold text-gray-900 mb-2">{stat.number}</div>
-                <div className="text-gray-600">{stat.label}</div>
-              </motion.div>
-            ))}
+          <div className="text-center mb-16">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-6">
+                Our Mission & Vision
+              </h2>
+              <div className="w-24 h-1 bg-gradient-to-r from-green-500 to-emerald-500 mx-auto mb-6"></div>
+              <p className="text-xl text-gray-700 max-w-3xl mx-auto leading-relaxed">
+                Promoting sustainable tourism while preserving our cultural heritage for generations to come
+              </p>
+            </motion.div>
           </div>
-        </div>
-      </section>
-
-      {/* History Section */}
-      <section className="section-padding bg-gray-50">
-        <div className="container-custom">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}
+              transition={{ duration: 0.7 }}
+              className="group"
             >
-              <h2 className="text-4xl font-bold text-gray-900 mb-6">The History of Casa Hacienda de Tejeros</h2>
-              <p className="text-lg text-gray-600 mb-6">
-                Casa Hacienda de Tejeros was originally built in the 17th century and was formerly owned by the Augustinian Recollects. 
-                The estate was once the largest and grandest estate in the country, covering as much as 1,125 hectares with the casa occupying 4 hectares.
-              </p>
-              <p className="text-lg text-gray-600 mb-6">
-                This historic site played a crucial role in 1897 when it hosted the assembly where the new leaders of the Philippine revolution were elected, 
-                including President Emilio Aguinaldo, Vice President Mariano Trias, Captain General Artemio Ricarte, Director of War Emiliano Riego de Dios, 
-                and Director of Interior Andres Bonifacio.
-              </p>
-              <p className="text-lg text-gray-600">
-                After Dr. José P. Rizal's death, Josephine Bracken and some of Rizal's siblings took refuge at the Casa. 
-                Though the original structure no longer stands due to years of turmoil, a new structure has been built by the Philippine army to honor its heritage.
-              </p>
+              <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 border border-green-100 h-full">
+                <div className="flex items-center mb-6">
+                  <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center mr-4">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-3xl font-bold text-gray-900">Our Mission</h3>
+                </div>
+                
+                <div className="text-gray-700 space-y-5">
+                  <p className="text-lg font-semibold text-green-700 border-l-4 border-green-500 pl-4">
+                    The Municipal Tourism Office aims to:
+                  </p>
+                  <div className="space-y-4">
+                    <div className="flex items-start space-x-3 p-3 rounded-lg bg-green-50 hover:bg-green-100 transition-colors">
+                      <span className="flex-shrink-0 w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center text-sm font-bold">i</span>
+                      <p className="text-gray-800 leading-relaxed">Preserve its historical integrity through authentic cultural counters and informative programs for future generations;</p>
+                    </div>
+                    <div className="flex items-start space-x-3 p-3 rounded-lg bg-green-50 hover:bg-green-100 transition-colors">
+                      <span className="flex-shrink-0 w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center text-sm font-bold">ii</span>
+                      <p className="text-gray-800 leading-relaxed">Promote Heritage Tourism by designing, engaging, and informative experiences for Tourists and Students;</p>
+                    </div>
+                    <div className="flex items-start space-x-3 p-3 rounded-lg bg-green-50 hover:bg-green-100 transition-colors">
+                      <span className="flex-shrink-0 w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center text-sm font-bold">iii</span>
+                      <p className="text-gray-800 leading-relaxed">Strengthen community participation in managing and promoting the site as a cultural destination;</p>
+                    </div>
+                    <div className="flex items-start space-x-3 p-3 rounded-lg bg-green-50 hover:bg-green-100 transition-colors">
+                      <span className="flex-shrink-0 w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center text-sm font-bold">iv</span>
+                      <p className="text-gray-800 leading-relaxed">Inspire the patriotism of the Filipinos and support the role of shaping the Philippine history and democracy.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </motion.div>
+            
             <motion.div
               initial={{ opacity: 0, x: 30 }}
               whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}
+              transition={{ duration: 0.7, delay: 0.2 }}
+              className="group"
             >
-              <img
-                src="/images/history/527746754_747256348042668_2417010083221788968_n.png"
-                alt="Casa Hacienda de Tejeros"
-                className="rounded-lg shadow-lg"
-              />
+              <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 border border-amber-100 h-full">
+                <div className="flex items-center mb-6">
+                  <div className="w-12 h-12 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full flex items-center justify-center mr-4">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-3xl font-bold text-gray-900">Our Vision</h3>
+                </div>
+                
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-8 border border-amber-200 text-center">
+                  <p className="text-xl md:text-2xl text-gray-800 leading-relaxed font-medium">
+                    The Municipal Tourism Office envisions becoming a <span className="font-bold text-amber-700">premier heritage destination</span> and a proud community that celebrates its rich traditions through vibrant event such as the <span className="font-bold text-orange-700">Tinapa Festival</span>; by fostering a deeper understanding and appreciation of the historical significance and relevance of <span className="font-bold text-green-700">Casa Hacienda de Tejeros</span>, and preserving the past while shaping a vibrant future.
+                  </p>
+                </div>
+              </div>
             </motion.div>
           </div>
         </div>
       </section>
 
-      {/* Mission & Vision */}
-      <section className="section-padding bg-white">
+      {/* Municipal Tourism Authority */}
+      <section className="section-padding bg-gray-50">
         <div className="container-custom">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Our Mission & Vision</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Promoting sustainable tourism while preserving our cultural heritage
-            </p>
+          <div className="text-center mb-16">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-6">
+                Municipal Tourism Authority
+              </h2>
+              <div className="w-24 h-1 bg-gradient-to-r from-green-500 to-emerald-500 mx-auto mb-6"></div>
+              <p className="text-xl text-gray-700 max-w-3xl mx-auto leading-relaxed">
+                The official leadership committed to promoting and preserving the heritage of Rosario, Cavite
+              </p>
+            </motion.div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="bg-primary-50 rounded-lg p-8"
+              className="bg-white rounded-xl p-8 text-center shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100"
             >
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Our Mission</h3>
-              <p className="text-gray-600">
-                To promote Casa Hacienda de Tejeros as a premier heritage destination by showcasing our rich cultural heritage, 
-                historical significance, and warm Filipino hospitality while ensuring sustainable development 
-                and community involvement.
+              <div className="mb-6">
+                <img
+                  src="/images/leaders/mayor.png"
+                  alt="Mayor Jose Voltaire V. Ricafrente"
+                  className="w-32 h-32 rounded-full mx-auto object-cover border-4 border-green-100 shadow-md"
+                />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Jose Voltaire V. Ricafrente</h3>
+              <p className="text-green-600 font-semibold mb-3 text-lg">Mayor</p>
+              <p className="text-gray-600 leading-relaxed">
+                Leading the municipality's vision for sustainable heritage tourism and cultural preservation.
               </p>
             </motion.div>
-            
+
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="bg-white rounded-xl p-8 text-center shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100"
+            >
+              <div className="mb-6">
+                <img
+                  src="/images/leaders/vice-mayor.png"
+                  alt="Vice Mayor Joanne Michelle B. Gonzales"
+                  className="w-32 h-32 rounded-full mx-auto object-cover border-4 border-green-100 shadow-md"
+                />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Joanne Michelle B. Gonzales</h3>
+              <p className="text-green-600 font-semibold mb-3 text-lg">Vice Mayor</p>
+              <p className="text-gray-600 leading-relaxed">
+                Supporting tourism initiatives and community engagement for Rosario's cultural development.
+              </p>
+            </motion.div>
+
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
-              className="bg-secondary-50 rounded-lg p-8"
+              className="bg-white rounded-xl p-8 text-center shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100"
             >
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Our Vision</h3>
-              <p className="text-gray-600">
-                To become the leading heritage tourism destination in Cavite, known for authentic historical experiences, 
-                cultural significance, and exceptional visitor satisfaction, while preserving our heritage 
-                for future generations.
+              <div className="mb-6">
+                <img
+                  src="/images/leaders/tourism-officer.png"
+                  alt="Municipal Tourism Officer Ruben R. Quinto"
+                  className="w-32 h-32 rounded-full mx-auto object-cover border-4 border-green-100 shadow-md"
+                />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Ruben R. Quinto</h3>
+              <p className="text-green-600 font-semibold mb-3 text-lg">Municipal Tourism Officer</p>
+              <p className="text-gray-600 leading-relaxed">
+                Managing daily tourism operations and ensuring exceptional visitor experiences at Casa Hacienda de Tejeros.
               </p>
             </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* Team Section */}
-      <section className="section-padding bg-gray-50">
-        <div className="container-custom">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Our Tourism Team</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Dedicated professionals committed to providing the best tourism experience
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                name: 'Maria Santos',
-                role: 'Tourism Officer',
-                image: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=300&h=300&fit=crop&crop=face',
-                description: 'Leading our tourism initiatives with over 10 years of experience.'
-              },
-              {
-                name: 'Juan Dela Cruz',
-                role: 'Local Guide',
-                image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=300&h=300&fit=crop&crop=face',
-                description: 'Expert guide with deep knowledge of Rosario\'s history and culture.'
-              },
-              {
-                name: 'Ana Reyes',
-                role: 'Community Coordinator',
-                image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=300&h=300&fit=crop&crop=face',
-                description: 'Connecting visitors with authentic local experiences and communities.'
-              }
-            ].map((member, index) => (
-              <motion.div
-                key={member.name}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="bg-white rounded-lg p-6 text-center shadow-sm"
-              >
-                <img
-                  src={member.image}
-                  alt={member.name}
-                  className="w-24 h-24 rounded-full mx-auto mb-4 object-cover"
-                />
-                <h3 className="text-xl font-bold text-gray-900 mb-2">{member.name}</h3>
-                <p className="text-primary-600 font-medium mb-3">{member.role}</p>
-                <p className="text-gray-600">{member.description}</p>
-              </motion.div>
-            ))}
           </div>
         </div>
       </section>
@@ -204,11 +215,20 @@ const About = () => {
       {/* Privacy Policy Section */}
       <section className="section-padding bg-white">
         <div className="container-custom">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Privacy & Data Protection</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Your privacy and data security are our top priorities
-            </p>
+          <div className="text-center mb-16">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-6">
+                Privacy & Data Protection
+              </h2>
+              <div className="w-24 h-1 bg-gradient-to-r from-green-500 to-emerald-500 mx-auto mb-6"></div>
+              <p className="text-xl text-gray-700 max-w-3xl mx-auto leading-relaxed">
+                Your privacy and data security are our top priorities
+              </p>
+            </motion.div>
           </div>
           
           <div className="max-w-4xl mx-auto">
@@ -251,14 +271,25 @@ const About = () => {
         </div>
       </section>
 
+
+
       {/* Credits Section */}
       <section className="section-padding bg-gray-50">
         <div className="container-custom">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Website Development Credits</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              This website was developed as an On-the-Job Training (OJT) project
-            </p>
+          <div className="text-center mb-16">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-6">
+                Development Credits
+              </h2>
+              <div className="w-24 h-1 bg-gradient-to-r from-green-500 to-emerald-500 mx-auto mb-6"></div>
+              <p className="text-xl text-gray-700 max-w-3xl mx-auto leading-relaxed">
+                Proudly developed by OJT trainees of Cavite State University - CCAT Campus
+              </p>
+            </motion.div>
           </div>
           
           <div className="max-w-4xl mx-auto">
@@ -269,31 +300,24 @@ const About = () => {
               className="bg-white rounded-lg p-8 shadow-sm text-center"
             >
               <div className="mb-6">
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">Developed by OJT Trainees</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">OJT Development Team</h3>
                 <p className="text-lg text-gray-600 mb-6">
-                  This tourism website for Casa Hacienda de Tejeros was developed as part of our 
-                  On-the-Job Training program. We are proud to contribute to promoting the rich 
-                  heritage and tourism potential of Rosario, Cavite.
+                  Created during our Computer Engineering OJT program to support 
+                  tourism promotion in the Municipality of Rosario, Cavite.
                 </p>
               </div>
               
               <div className="border-t border-gray-200 pt-6">
-                <h4 className="text-lg font-semibold text-gray-900 mb-4">Development Team</h4>
-                <p className="text-gray-600 mb-4">
-                  OJT Trainees - Computer Engineering Program
-                </p>
-                <div className="text-sm text-gray-500">
-                  <p>Project Duration: July-August 2025 (OJT Training Period)</p>
-                  <p>Technology Stack: React.js, Firebase, Tailwind CSS</p>
-                  <p>Submitted as completion requirement for OJT Training</p>
+                <div className="text-sm text-gray-500 space-y-1">
+                  <p>Technology: React.js • Firebase • Tailwind CSS</p>
+                  <p>Training Period: July-August 2025</p>
                 </div>
               </div>
               
               <div className="mt-6 p-4 bg-primary-50 rounded-lg">
                 <p className="text-primary-700 font-medium">
-                  Special thanks to the Municipal Tourism Office of Rosario, Cavite 
-                  for providing the opportunity to create this project and contribute 
-                  to the promotion of local tourism.
+                  Thank you to the Municipal Tourism Office of Rosario, Cavite 
+                  for this meaningful learning opportunity.
                 </p>
               </div>
             </motion.div>
@@ -302,7 +326,7 @@ const About = () => {
       </section>
 
       {/* Contact CTA */}
-      <section className="section-padding bg-gradient-primary text-white">
+      <section className="section-padding text-white" style={{ background: 'linear-gradient(135deg, rgba(93, 156, 89, 0.8) 25%, rgba(223, 46, 56, 0.8) 100%)' }}>
         <div className="container-custom text-center">
           <h2 className="text-4xl font-bold mb-6">Ready to Explore Casa Hacienda de Tejeros?</h2>
           <p className="text-xl mb-8 max-w-2xl mx-auto">

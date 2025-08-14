@@ -1,40 +1,35 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users can read and write their own data
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-      // Allow reading for password reset email verification (unauthenticated)
-      allow read: if true;
-    }
-    
     // Public read access for destinations and other content
     match /destinations/{document=**} {
       allow read: if true;
       allow write: if request.auth != null && request.auth.token.role == 'admin';
     }
     
-    // Bookings
-    // - Allow unauthenticated users to create bookings (for testing)
-    // - Allow them to read bookings that match their email
-    // - Allow public read for duplicate checking
+    // Bookings - public access for tourism booking system
     match /bookings/{bookingId} {
-      allow read: if true; // Allow reading for duplicate checks
-      allow create: if true; // Allow unauthenticated users to create (temporary for testing)
-      allow update, delete: if request.auth != null && (
-        resource.data.email == request.auth.token.email ||
-        request.auth.token.role == 'admin'
-      );
+      allow read, create: if true; // Allow public access for tourism bookings
+      allow update, delete: if request.auth != null && request.auth.token.role == 'admin';
     }
     
-    // Verification codes - allow read/write for verification process
-    match /verification_codes/{email} {
-      allow read, write: if true;
+    // Booking settings - admin only
+    match /settings/bookingSettings {
+      allow read: if true; // Allow public read for booking availability
+      allow write: if request.auth != null && request.auth.token.role == 'admin';
     }
     
-    // Reset codes - allow read/write for password reset process
-    match /reset_codes/{email} {
-      allow read, write: if true;
+    // Contact information - public read, admin write
+    match /settings/contactInfo {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.role == 'admin';
+    }
+    
+    // Booking settings - allow read for all, write for authenticated users (admin check done client-side)
+    match /booking_settings/{settingsId} {
+      allow read: if true; // Allow public read for the booking page to check settings
+      allow create, update: if true; // Allow creation and updates (admin check done in application)
+      allow delete: if false; // Prevent deletion of settings
     }
     
     // Emails collection for email sending

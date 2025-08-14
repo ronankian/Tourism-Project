@@ -79,11 +79,23 @@ Create a `.env` file in your project root with:
 REACT_APP_EMAILJS_SERVICE_ID=your_service_id_here
 REACT_APP_EMAILJS_TEMPLATE_ID=your_template_id_here
 REACT_APP_EMAILJS_PUBLIC_KEY=your_public_key_here
+REACT_APP_RECAPTCHA_SITE_KEY=your_recaptcha_site_key_here
 ```
 
-Replace the placeholder values with your actual EmailJS credentials.
+Replace the placeholder values with your actual EmailJS and reCAPTCHA credentials.
 
-### Step 6: Restart Development Server
+### Step 6: Setup Google reCAPTCHA (Required)
+
+1. Go to https://www.google.com/recaptcha/admin
+2. Click "+" to create a new site
+3. Enter:
+   - **Label**: Casa Hacienda Tourism Website
+   - **reCAPTCHA type**: reCAPTCHA v2 "I'm not a robot" Checkbox
+   - **Domains**: Add your domain (e.g., yourdomain.com, localhost for testing)
+4. Accept the terms and click "Submit"
+5. Copy the **Site Key** and add it to your `.env` file as `REACT_APP_RECAPTCHA_SITE_KEY`
+
+### Step 7: Restart Development Server
 
 ```bash
 npm start
@@ -109,6 +121,14 @@ If EmailJS fails:
 2. Check that your EmailJS account is active
 3. Ensure your email service is properly configured
 4. Check the EmailJS dashboard for any error messages
+
+### reCAPTCHA Errors
+If reCAPTCHA doesn't appear or fails:
+1. Verify `REACT_APP_RECAPTCHA_SITE_KEY` is set correctly in `.env`
+2. Ensure your domain is registered in Google reCAPTCHA admin
+3. Check that reCAPTCHA v2 "I'm not a robot" is selected (not v3)
+4. For localhost testing, make sure to add "localhost" to your reCAPTCHA domains
+5. Clear browser cache and restart development server
 
 ### Fallback Behavior
 The system has a fallback mechanism:
