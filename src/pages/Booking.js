@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Users, Clock, Mail, Wrench, CheckCircle, XCircle } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { bookingService } from '../services/bookingService';
 import { bookingSettingsService } from '../services/bookingSettingsService';
 import { storage, auth } from '../firebase';
@@ -12,6 +13,7 @@ import { verifyRecaptchaToken, isRecaptchaValid, getRecaptchaErrorMessage } from
 
 
 const Booking = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [bookingData, setBookingData] = useState({
     date: '',
@@ -138,19 +140,24 @@ const Booking = () => {
   const [recaptchaToken, setRecaptchaToken] = useState(null);
   const recaptchaRef = useRef(null);
   const [recaptchaRendered, setRecaptchaRendered] = useState(false);
+  const [recaptchaError, setRecaptchaError] = useState(false);
+  const [widgetId, setWidgetId] = useState(null);
   const [showProtocolModal, setShowProtocolModal] = useState(false);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   // Define onload callback function (must be global)
   useEffect(() => {
-    // Debug: Check if environment variable is loaded
-    console.log('reCAPTCHA Site Key:', process.env.REACT_APP_RECAPTCHA_SITE_KEY);
-    console.log('All environment variables:', process.env);
-    console.log('Environment variable type:', typeof process.env.REACT_APP_RECAPTCHA_SITE_KEY);
-    console.log('Environment variable length:', process.env.REACT_APP_RECAPTCHA_SITE_KEY?.length);
+    // Debug: Check if environment variables are loaded
+    console.log('🔍 Booking reCAPTCHA Key:', process.env.REACT_APP_RECAPTCHA_BOOKING_SITE_KEY);
+    console.log('🔍 Legacy reCAPTCHA Key:', process.env.REACT_APP_RECAPTCHA_SITE_KEY);
+    console.log('🔍 All REACT_APP env vars:', Object.keys(process.env).filter(key => key.startsWith('REACT_APP_RECAPTCHA')));
     
-    // Check if site key is available
-    if (!process.env.REACT_APP_RECAPTCHA_SITE_KEY) {
-      console.error('❌ reCAPTCHA Site Key is missing! Please check your .env file.');
+    // Check if booking site key is available
+    const bookingSiteKey = process.env.REACT_APP_RECAPTCHA_BOOKING_SITE_KEY || process.env.REACT_APP_RECAPTCHA_SITE_KEY;
+    console.log('🎯 Using Booking site key:', bookingSiteKey);
+    if (!bookingSiteKey) {
+      console.error('❌ Booking reCAPTCHA Site Key is missing! Please check your .env file.');
       return;
     }
     
@@ -164,77 +171,283 @@ const Booking = () => {
       return;
     }
 
-    // Define the onload callback function globally (as per official docs)
-    window.onloadCallback = function() {
-      if (window.grecaptcha && recaptchaRef.current && !recaptchaRendered) {
-        try {
-          // Check if element already has reCAPTCHA widget
-          const existingWidget = recaptchaRef.current.querySelector('.g-recaptcha');
-          if (existingWidget) {
-            console.log('reCAPTCHA widget already exists in element');
-            return;
-          }
-          
-          window.grecaptcha.render(recaptchaRef.current, {
-            'sitekey': process.env.REACT_APP_RECAPTCHA_SITE_KEY,
-            'theme': 'light',
-            'callback': (token) => {
-              console.log('reCAPTCHA success:', token);
-              setRecaptchaToken(token);
-            },
-            'expired-callback': () => {
-              console.log('reCAPTCHA expired');
-              setRecaptchaToken(null);
-              toast.warning('reCAPTCHA expired. Please verify again.');
-            },
-            'error-callback': () => {
-              console.log('reCAPTCHA error');
-              setRecaptchaToken(null);
-              toast.error('reCAPTCHA encountered an error. Please refresh the page and try again.');
-            }
-          });
-          setRecaptchaRendered(true);
-          console.log('✅ reCAPTCHA rendered successfully');
-        } catch (error) {
-          console.error('❌ Error rendering reCAPTCHA:', error);
-          // If it's an "already rendered" error, mark as rendered anyway
-          if (error.message.includes('already been rendered')) {
-            setRecaptchaRendered(true);
-            console.log('✅ reCAPTCHA already rendered, continuing...');
+    // Define the render function
+    const renderRecaptcha = () => {
+      console.log('🔄 renderRecaptcha called');
+      console.log('📊 Current state:', {
+        hasGrecaptcha: !!window.grecaptcha,
+        hasRender: !!(window.grecaptcha && window.grecaptcha.render),
+        hasRef: !!recaptchaRef.current,
+        alreadyRendered: recaptchaRendered,
+        siteKey: bookingSiteKey
+      });
+      
+      if (!window.grecaptcha || !window.grecaptcha.render) {
+        console.log('❌ grecaptcha not available yet');
+        return;
+      }
+      
+      if (!recaptchaRef.current) {
+        console.log('❌ recaptchaRef not available yet, retrying in 100ms...');
+        setTimeout(renderRecaptcha, 100);
+        return;
+      }
+      
+      if (recaptchaRendered) {
+        console.log('✅ reCAPTCHA already rendered, skipping');
+        return;
+      }
+
+      try {
+        console.log('🚀 Starting reCAPTCHA render process');
+        
+        // Clear any existing widget first
+        if (widgetId !== null) {
+          try {
+            window.grecaptcha.reset(widgetId);
+            console.log('🔄 Reset existing widget ID:', widgetId);
+          } catch (e) {
+            console.log('Could not reset existing widget, continuing...');
           }
         }
+
+        // Clear the container safely
+        if (recaptchaRef.current) {
+          try {
+            // Only clear if it's safe to do so
+            const children = recaptchaRef.current.children;
+            for (let i = children.length - 1; i >= 0; i--) {
+              const child = children[i];
+              if (child.classList.contains('g-recaptcha') || child.classList.contains('text-gray-500')) {
+                recaptchaRef.current.removeChild(child);
+              }
+            }
+          } catch (e) {
+            // Fallback to innerHTML if safe removal fails
+            console.log('Using innerHTML fallback for container clear');
+            recaptchaRef.current.innerHTML = '';
+          }
+          console.log('🧹 Cleared reCAPTCHA container');
+        }
+
+        // Render new widget
+        console.log('🎯 Rendering with site key:', bookingSiteKey);
+        const newWidgetId = window.grecaptcha.render(recaptchaRef.current, {
+          'sitekey': bookingSiteKey,
+          'theme': 'light',
+          'callback': (token) => {
+            console.log('✅ reCAPTCHA success:', token);
+            setRecaptchaToken(token);
+          },
+          'expired-callback': () => {
+            console.log('⏰ reCAPTCHA expired');
+            setRecaptchaToken(null);
+            toast.warning('reCAPTCHA expired. Please verify again.');
+          },
+          'error-callback': () => {
+            console.log('❌ reCAPTCHA error callback triggered');
+            setRecaptchaToken(null);
+            toast.error('reCAPTCHA encountered an error. Please refresh the page and try again.');
+          }
+        });
+        
+        console.log('🆔 New widget ID:', newWidgetId);
+        setWidgetId(newWidgetId);
+        setRecaptchaRendered(true);
+        console.log('✅ reCAPTCHA rendered successfully with ID:', newWidgetId);
+      } catch (error) {
+        console.error('❌ Error rendering reCAPTCHA:', error);
+        console.error('Error details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        });
       }
     };
 
+    // Define the onload callback function globally (as per official docs)
+    window.onloadCallback = renderRecaptcha;
+
     // Only load script if site key is available
     let script = null;
-    if (process.env.REACT_APP_RECAPTCHA_SITE_KEY) {
-      console.log('✅ Loading reCAPTCHA script with site key:', process.env.REACT_APP_RECAPTCHA_SITE_KEY);
+    if (bookingSiteKey) {
+      console.log('✅ Loading Booking reCAPTCHA script with site key:', bookingSiteKey);
       
-      // Create script element following official documentation
-      script = document.createElement('script');
-      script.src = 'https://www.google.com/recaptcha/api.js?onload=onloadCallback&render=explicit';
-      script.async = true;
-      script.defer = true;
-      document.head.appendChild(script);
+      // Check if script already exists
+      const existingScript = document.querySelector('script[src*="recaptcha/api.js"]');
+      if (!existingScript) {
+        // Create script element following official documentation
+        script = document.createElement('script');
+        script.src = 'https://www.google.com/recaptcha/api.js?onload=onloadCallback&render=explicit';
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+      } else {
+        console.log('reCAPTCHA script already loaded');
+        // If script exists but grecaptcha is ready, call render
+        if (window.grecaptcha && window.grecaptcha.render) {
+          setTimeout(renderRecaptcha, 100);
+        }
+      }
     } else {
       console.error('❌ Cannot load reCAPTCHA script - site key is missing!');
     }
 
     // Cleanup function
     return () => {
-      if (script && script.parentNode) {
-        script.parentNode.removeChild(script);
+      try {
+        // Reset the widget if it exists
+        if (widgetId !== null && window.grecaptcha && window.grecaptcha.reset) {
+          window.grecaptcha.reset(widgetId);
+          console.log('🧹 reCAPTCHA widget reset on cleanup');
+        }
+        
+        // Clear the container safely
+        if (recaptchaRef.current) {
+          // Let reCAPTCHA handle its own cleanup first
+          if (window.grecaptcha && window.grecaptcha.reset) {
+            try {
+              const widgets = recaptchaRef.current.querySelectorAll('.g-recaptcha');
+              widgets.forEach(widget => {
+                if (widget.parentNode === recaptchaRef.current) {
+                  recaptchaRef.current.removeChild(widget);
+                }
+              });
+            } catch (e) {
+              // Safe cleanup - just clear innerHTML if individual removal fails
+              recaptchaRef.current.innerHTML = '';
+            }
+          }
+        }
+        
+        // Reset state
+        setRecaptchaRendered(false);
+        setRecaptchaToken(null);
+        setWidgetId(null);
+      } catch (e) {
+        console.log('Cleanup error (non-critical):', e);
       }
-      // Don't delete window.onloadCallback to prevent issues with multiple renders
     };
-  }, [recaptchaRendered]);
+  }, []);
+
+
+
+  // Additional useEffect to handle reCAPTCHA rendering when ref becomes available
+  useEffect(() => {
+    if (recaptchaRef.current && window.grecaptcha && window.grecaptcha.render && !recaptchaRendered) {
+      console.log('🔄 Ref is now available, attempting to render reCAPTCHA');
+      setTimeout(() => {
+        if (recaptchaRef.current && !recaptchaRendered) {
+          const renderRecaptcha = () => {
+            try {
+              console.log('🚀 Manual render attempt');
+              const bookingSiteKey = process.env.REACT_APP_RECAPTCHA_BOOKING_SITE_KEY || process.env.REACT_APP_RECAPTCHA_SITE_KEY;
+              
+              if (recaptchaRef.current) {
+                try {
+                  // Safe container clearing
+                  const children = recaptchaRef.current.children;
+                  for (let i = children.length - 1; i >= 0; i--) {
+                    const child = children[i];
+                    if (child.classList.contains('g-recaptcha') || child.classList.contains('text-gray-500')) {
+                      recaptchaRef.current.removeChild(child);
+                    }
+                  }
+                } catch (e) {
+                  recaptchaRef.current.innerHTML = '';
+                }
+              }
+
+              const newWidgetId = window.grecaptcha.render(recaptchaRef.current, {
+                'sitekey': bookingSiteKey,
+                'theme': 'light',
+                'callback': (token) => {
+                  console.log('✅ reCAPTCHA success:', token);
+                  setRecaptchaToken(token);
+                },
+                'expired-callback': () => {
+                  console.log('⏰ reCAPTCHA expired');
+                  setRecaptchaToken(null);
+                  toast.warning('reCAPTCHA expired. Please verify again.');
+                },
+                'error-callback': () => {
+                  console.log('❌ reCAPTCHA error callback triggered');
+                  setRecaptchaToken(null);
+                  toast.error('reCAPTCHA encountered an error. Please refresh the page and try again.');
+                }
+              });
+              
+              setWidgetId(newWidgetId);
+              setRecaptchaRendered(true);
+              console.log('✅ Manual reCAPTCHA render successful with ID:', newWidgetId);
+            } catch (error) {
+              console.error('❌ Manual render error:', error);
+            }
+          };
+          renderRecaptcha();
+        }
+      }, 500);
+    }
+  }, [recaptchaRef.current, recaptchaRendered]);
+
+  // Check for success parameter from email verification
+  useEffect(() => {
+    if (searchParams.get('success') === 'true') {
+      setShowSuccessModal(true);
+      // Clean up the URL parameter
+      setSearchParams(prev => {
+        const newParams = new URLSearchParams(prev);
+        newParams.delete('success');
+        return newParams;
+      });
+    }
+  }, [searchParams, setSearchParams]);
 
   const resetRecaptcha = () => {
-    if (window.grecaptcha) {
-      window.grecaptcha.reset();
-      setRecaptchaToken(null);
+    if (window.grecaptcha && widgetId !== null) {
+      try {
+        window.grecaptcha.reset(widgetId);
+        setRecaptchaToken(null);
+        console.log('🔄 reCAPTCHA reset after failed submission');
+      } catch (e) {
+        console.log('Could not reset reCAPTCHA widget:', e);
+      }
     }
+  };
+
+  // Validation function to check if all required fields are filled
+  const isBookingFormValid = () => {
+    // Check if package is selected
+    if (!selectedPackage) return false;
+    
+    // Check if protocols are agreed to
+    if (!agreedToProtocols) return false;
+    
+    // Check if reCAPTCHA is completed
+    if (!recaptchaToken) return false;
+    
+    // Check basic required fields (trim to prevent whitespace-only entries)
+    const basicFieldsFilled = bookingData.name.trim() && 
+                             bookingData.email.trim() && 
+                             bookingData.phone.trim() && 
+                             bookingData.guests && 
+                             bookingData.date.trim() && 
+                             bookingData.purpose.trim() && 
+                             bookingData.time.trim();
+    
+    if (!basicFieldsFilled) return false;
+    
+    // Check organization-specific fields if Organization package is selected
+    if (selectedPackage?.name === 'Organization & Institutional Tour') {
+      if (!bookingData.schoolOrOrganizationName.trim()) return false;
+    }
+    
+    // Check if "Other" purpose requires additional field
+    if (bookingData.purpose === 'Other' && !bookingData.otherPurpose.trim()) {
+      return false;
+    }
+    
+    return true;
   };
 
     const TEST_MODE = String(process.env.REACT_APP_TEST_MODE).toLowerCase() === 'true';
@@ -305,7 +518,7 @@ const Booking = () => {
           const message = 'This email already has an ongoing booking. You can submit a new booking with this email after your previously selected date and time has passed.';
           toast.error(message);
           setDuplicateMessage(message);
-          setShowVerificationMessage(false);
+          setShowVerificationModal(false);
           return;
         }
       } catch (dupErr) {
@@ -335,7 +548,7 @@ const Booking = () => {
         // Testing mode: send verification email and show success message
         await sendBookingVerificationEmail(bookingDataToSubmit);
         toast.success('Booking verification email sent (Test Mode). Please check your email and click the verification link.');
-        setShowVerificationMessage(true);
+        setShowVerificationModal(true);
         
         // Reset reCAPTCHA
         resetRecaptcha();
@@ -362,7 +575,7 @@ const Booking = () => {
         // Store booking data temporarily and send verification email
         await sendBookingVerificationEmail({ ...bookingDataToSubmit, attachments });
         toast.success('Booking verification email sent! Please check your email and click the verification link to complete your booking.');
-        setShowVerificationMessage(true);
+        setShowVerificationModal(true);
         
         // Reset reCAPTCHA
         resetRecaptcha();
@@ -656,7 +869,7 @@ const Booking = () => {
                 {/* Contact info first */}
                 <div>
                   <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                    Full Name
+                    Full Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -671,7 +884,7 @@ const Booking = () => {
 
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                    Email Address
+                    Email Address <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="email"
@@ -686,7 +899,7 @@ const Booking = () => {
 
                 <div>
                   <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone Number
+                    Phone Number <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="tel"
@@ -704,7 +917,7 @@ const Booking = () => {
                    {/* Number of Guests */}
                    <div>
                      <label htmlFor="guests" className="block text-sm font-medium text-gray-700 mb-2">
-                       Number of Guests
+                       Number of Guests <span className="text-red-500">*</span>
                      </label>
                      <div className="flex items-center border border-gray-300 rounded-lg bg-white">
                        <button
@@ -767,7 +980,7 @@ const Booking = () => {
                    {/* Preferred Date */}
                    <div>
                      <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-2">
-                       Preferred Date
+                       Preferred Date <span className="text-red-500">*</span>
                      </label>
                      <input
                        type="date"
@@ -782,7 +995,7 @@ const Booking = () => {
                    {/* Purpose of Visit */}
                    <div>
                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                       Purpose of Visit
+                       Purpose of Visit <span className="text-red-500">*</span>
                      </label>
                      <select
                        id="purpose"
@@ -804,7 +1017,7 @@ const Booking = () => {
                    {/* Preferred Time */}
                    <div>
                      <label htmlFor="time" className="block text-sm font-medium text-gray-700 mb-2">
-                       Preferred Time
+                       Preferred Time <span className="text-red-500">*</span>
                      </label>
                      <div className="relative">
                        <select
@@ -975,61 +1188,50 @@ const Booking = () => {
                 )}
 
                 {/* reCAPTCHA */}
-                <div className="flex justify-center">
-                  <div 
-                    ref={recaptchaRef}
-                    id="recaptcha-container"
-                  ></div>
+                <div className="space-y-3 mb-6">
+                  <div className="flex justify-center">
+                    <div 
+                      ref={recaptchaRef}
+                      id="recaptcha-container"
+                      className="min-h-[78px] w-full max-w-[304px] bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-center"
+                      style={{ minHeight: '78px' }}
+                      suppressHydrationWarning={true}
+                    >
+                    </div>
+                  </div>
+                  
+                  {/* Required fields notice */}
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600">
+                      <span className="text-red-500">*</span> Required fields
+                    </p>
+                    {!isBookingFormValid() && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Please complete all required fields, agree to protocols, and verify reCAPTCHA to proceed
+                      </p>
+                    )}
+                  </div>
                 </div>
 
-                 {duplicateMessage ? (
+                 {duplicateMessage && (
                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
                      <Mail className="w-8 h-8 text-red-600 mx-auto mb-2" />
                      <h3 className="text-lg font-semibold text-red-800 mb-2">Duplicate Booking Detected</h3>
                      <p className="text-red-700 mb-4">{duplicateMessage}</p>
                    </div>
-                 ) : showVerificationMessage ? (
-                   <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 text-center">
-                     <Mail className="w-8 h-8 text-primary-600 mx-auto mb-2" />
-                     <h3 className="text-lg font-semibold text-primary-800 mb-2">Step 1 Complete - Email Verification Required!</h3>
-                     <p className="text-primary-700 mb-4">
-                       We've sent a verification email to <strong>{bookingData.email}</strong>. Please check your email and click the verification link to complete your booking and receive your permission letter.
-                     </p>
-                     <p className="text-sm text-primary-600">
-                       If you don't see the email, check your spam folder. The verification link will expire in 24 hours.
-                     </p>
-                   </div>
-                 ) : (
+                 )}
+
+                 {!duplicateMessage && (
                   <button
                     type="submit"
-                    disabled={!selectedPackage || isSubmitting || !recaptchaToken || !(() => {
-                      // Check all required fields
-                      const basicFieldsFilled = bookingData.name && 
-                                               bookingData.email && 
-                                               bookingData.phone && 
-                                               bookingData.guests && 
-                                               bookingData.date && 
-                                               bookingData.purpose && 
-                                               bookingData.time &&
-                                               agreedToProtocols;
-
-                      // Check organization-specific fields if Organization package is selected
-                      if (selectedPackage?.name === 'Organization & Institutional Tour') {
-                        return basicFieldsFilled && 
-                               bookingData.schoolOrOrganizationName && 
-                               (bookingData.purpose !== 'Other' || bookingData.otherPurpose);
-                      }
-
-                      // Check if "Other" purpose requires additional field
-                      if (bookingData.purpose === 'Other') {
-                        return basicFieldsFilled && bookingData.otherPurpose;
-                      }
-
-                      return basicFieldsFilled;
-                    })()}
-                    className="w-full btn-primary py-3 text-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isSubmitting || !isBookingFormValid()}
+                    className={`w-full btn-primary py-3 text-lg font-medium transition-all duration-200 ${
+                      isSubmitting || !isBookingFormValid()
+                        ? 'opacity-50 cursor-not-allowed' 
+                        : 'hover:transform hover:scale-[1.02]'
+                    }`}
                   >
-                    {isSubmitting ? 'Sending Verification Email...' : 'Send Verification Email'}
+                    {isSubmitting ? 'Processing Booking...' : 'Book Now'}
                   </button>
                 )}
               </form>
@@ -1141,6 +1343,81 @@ const Booking = () => {
                 onClick={() => setShowProtocolModal(false)}
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Verification Modal */}
+      {showVerificationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" />
+          <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 mb-4">
+                <Mail className="w-6 h-6 text-blue-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Email Verification Required</h3>
+              <p className="text-gray-600 mb-6">
+                We've sent a verification link to <strong>{bookingData.email}</strong>. 
+                Please check your email and click the verification link to complete your booking.
+              </p>
+              <p className="text-sm text-gray-500 mb-6">
+                If you don't see the email, check your spam folder. The verification link will expire in 24 hours.
+              </p>
+              <button
+                onClick={() => setShowVerificationModal(false)}
+                className="w-full btn-primary py-2 px-4 rounded-lg"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" />
+          <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center w-12 h-12 rounded-full bg-green-100 mb-4">
+                <CheckCircle className="w-6 h-6 text-green-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Booking Confirmed!</h3>
+              <p className="text-gray-600 mb-4">
+                Your booking has been successfully confirmed. 
+              </p>
+              <p className="text-gray-600 mb-6">
+                Please check your email for your permission letter and visit details. This letter is required for your visit to Casa Hacienda de Tejeros.
+              </p>
+              <button
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  // Reset form data
+                  setSelectedPackage(null);
+                  setBookingData({
+                    date: '',
+                    time: '',
+                    guests: 1,
+                    name: '',
+                    email: '',
+                    phone: '',
+                    specialRequests: '',
+                    purpose: '',
+                    otherPurpose: '',
+                    schoolOrOrganizationName: ''
+                  });
+                  setRecaptchaToken(null);
+                  setAgreedToProtocols(false);
+                  setDuplicateMessage('');
+                  resetRecaptcha();
+                }}
+                className="w-full btn-primary py-2 px-4 rounded-lg"
+              >
+                Book Another Visit
               </button>
             </div>
           </div>

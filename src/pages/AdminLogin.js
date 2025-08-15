@@ -17,20 +17,18 @@ const AdminLogin = () => {
   const [recaptchaToken, setRecaptchaToken] = useState(null);
   const recaptchaRef = useRef(null);
   const [recaptchaRendered, setRecaptchaRendered] = useState(false);
+  const [recaptchaError, setRecaptchaError] = useState(false);
   const navigate = useNavigate();
   const { adminLoginWithPasskey } = useAuth();
 
-  // Define onload callback function (must be global)
+  // Remove widget ID tracking - let reCAPTCHA handle its own state
+
+  // Define onload callback function (must be global) - EXACT copy from working Contact.js
   useEffect(() => {
-    // Debug: Check if environment variable is loaded
-    console.log('reCAPTCHA Site Key:', process.env.REACT_APP_RECAPTCHA_SITE_KEY);
-    console.log('All environment variables:', process.env);
-    console.log('Environment variable type:', typeof process.env.REACT_APP_RECAPTCHA_SITE_KEY);
-    console.log('Environment variable length:', process.env.REACT_APP_RECAPTCHA_SITE_KEY?.length);
-    
-    // Check if site key is available
-    if (!process.env.REACT_APP_RECAPTCHA_SITE_KEY) {
-      console.error('❌ reCAPTCHA Site Key is missing! Please check your .env file.');
+    // Check if admin site key is available
+    const adminSiteKey = process.env.REACT_APP_RECAPTCHA_ADMIN_SITE_KEY || process.env.REACT_APP_RECAPTCHA_SITE_KEY;
+    if (!adminSiteKey) {
+      console.error('❌ Admin reCAPTCHA Site Key is missing! Please check your .env file.');
       return;
     }
     
@@ -56,7 +54,7 @@ const AdminLogin = () => {
           }
           
           window.grecaptcha.render(recaptchaRef.current, {
-            'sitekey': process.env.REACT_APP_RECAPTCHA_SITE_KEY,
+            'sitekey': adminSiteKey,
             'theme': 'light',
             'callback': (token) => {
               console.log('reCAPTCHA success:', token);
@@ -86,34 +84,43 @@ const AdminLogin = () => {
       }
     };
 
-    // Only load script if site key is available
-    let script = null;
-    if (process.env.REACT_APP_RECAPTCHA_SITE_KEY) {
-      console.log('✅ Loading reCAPTCHA script with site key:', process.env.REACT_APP_RECAPTCHA_SITE_KEY);
-      
-      // Create script element following official documentation
-      script = document.createElement('script');
-      script.src = 'https://www.google.com/recaptcha/api.js?onload=onloadCallback&render=explicit';
-      script.async = true;
-      script.defer = true;
+    console.log('✅ Loading Admin reCAPTCHA script with site key:', adminSiteKey);
+    const script = document.createElement('script');
+    script.src = `https://www.google.com/recaptcha/api.js?onload=onloadCallback&render=explicit`;
+    script.async = true;
+    script.defer = true;
+    
+    script.onload = () => {
+      console.log('📦 reCAPTCHA script loaded successfully');
+    };
+    
+    script.onerror = (error) => {
+      console.error('❌ Failed to load reCAPTCHA script:', error);
+    };
+    
+    // Check if script with same src already exists
+    const existingScript = document.querySelector(`script[src*="recaptcha/api.js"]`);
+    if (!existingScript) {
       document.head.appendChild(script);
     } else {
-      console.error('❌ Cannot load reCAPTCHA script - site key is missing!');
+      console.log('reCAPTCHA script already loaded');
     }
+  }, []);
 
-    // Cleanup function
-    return () => {
-      if (script && script.parentNode) {
-        script.parentNode.removeChild(script);
-      }
-      // Don't delete window.onloadCallback to prevent issues with multiple renders
-    };
-  }, [recaptchaRendered]);
+
+
+
 
   const resetRecaptcha = () => {
-    if (window.grecaptcha) {
-      window.grecaptcha.reset();
-      setRecaptchaToken(null);
+    if (window.grecaptcha && window.grecaptcha.reset) {
+      try {
+        // Simple reset without widget ID tracking
+        window.grecaptcha.reset();
+        setRecaptchaToken(null);
+        console.log('🔄 reCAPTCHA reset after failed login');
+      } catch (e) {
+        console.log('Could not reset reCAPTCHA widget:', e);
+      }
     }
   };
 
@@ -240,7 +247,11 @@ const AdminLogin = () => {
                 <div 
                   ref={recaptchaRef}
                   id="recaptcha-container"
-                ></div>
+                  className="min-h-[78px] w-full max-w-[304px] bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-center"
+                  style={{ minHeight: '78px' }}
+                  suppressHydrationWarning={true}
+                >
+                </div>
               </div>
 
               <div>

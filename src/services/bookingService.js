@@ -80,6 +80,14 @@ export const bookingService = {
           // Don't fail the booking creation if email fails
         }
       }
+
+      // Send admin notification for new booking
+      try {
+        await this.sendAdminBookingNotification(docRef.id);
+      } catch (adminEmailError) {
+        console.warn('Failed to send admin notification:', adminEmailError);
+        // Don't fail the booking creation if admin email fails
+      }
        
       return { success: true, bookingId: docRef.id };
     } catch (error) {
@@ -239,7 +247,7 @@ export const bookingService = {
       
       await emailjs.default.send(
         process.env.REACT_APP_EMAILJS_SERVICE_ID,
-        process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
+        'template_8yzllnv', // Booking confirmation template
         templateParams,
         { publicKey: process.env.REACT_APP_EMAILJS_PUBLIC_KEY }
       );
@@ -278,7 +286,7 @@ export const bookingService = {
       
       await emailjs.default.send(
         process.env.REACT_APP_EMAILJS_SERVICE_ID,
-        process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
+        'template_8yzllnv', // Booking confirmation template
         templateParams,
         { publicKey: process.env.REACT_APP_EMAILJS_PUBLIC_KEY }
       );
@@ -295,69 +303,101 @@ export const bookingService = {
       const bookingDoc = await getDoc(doc(db, 'bookings', bookingId));
       const booking = bookingDoc.data();
       
-      let subject = '';
-      let message = '';
+      let statusMessage = '';
       
       switch (status) {
         case 'approved':
-          subject = 'Booking Approved - Casa Hacienda de Tejeros';
-          message = `
-            <h2>Booking Approved!</h2>
-            <p>Dear ${booking.name},</p>
-            <p>Great news! Your booking has been approved.</p>
-            <p><strong>Booking Details:</strong></p>
-            <ul>
-              <li>Package: ${booking.packageName}</li>
-              <li>Date: ${booking.date}</li>
-              <li>Guests: ${booking.guests}</li>
-            </ul>
-            <p>Please arrive 15 minutes before your scheduled time.</p>
-            <p>For any questions, contact us at (046) 886-9707</p>
-            <p>Best regards,<br>Casa Hacienda de Tejeros Tourism Office</p>
-          `;
+          statusMessage = 'CONGRATULATIONS! Your visit has been confirmed. Please follow all our site protocols and guidelines during your visit.';
           break;
           
         case 'rejected':
-          subject = 'Booking Update - Casa Hacienda de Tejeros';
-          message = `
-            <h2>Booking Update</h2>
-            <p>Dear ${booking.name},</p>
-            <p>We regret to inform you that your booking could not be approved at this time.</p>
-            <p>Reason: ${booking.adminNotes || 'No specific reason provided'}</p>
-            <p>Please contact us at (046) 886-9707 for assistance.</p>
-            <p>Best regards,<br>Casa Hacienda de Tejeros Tourism Office</p>
-          `;
+          statusMessage = 'Unfortunately, we cannot accommodate your visit request at this time due to scheduling conflicts.';
           break;
           
         case 'completed':
-          subject = 'Tour Completed - Casa Hacienda de Tejeros';
-          message = `
-            <h2>Tour Completed</h2>
-            <p>Dear ${booking.name},</p>
-            <p>Thank you for choosing Casa Hacienda de Tejeros Tourism Office!</p>
-            <p>We hope you enjoyed your tour. Please share your experience with us.</p>
-            <p>Best regards,<br>Casa Hacienda de Tejeros Tourism Office</p>
-          `;
+          statusMessage = 'Thank you for choosing Casa Hacienda de Tejeros Tourism Office! We hope you enjoyed your tour. Please share your experience with us.';
           break;
         default:
           // Unknown status; no email
           return;
       }
+
+      const emailData = {
+        status: status.toUpperCase(),
+        from_name: booking.name,
+        from_email: booking.email,
+        booking_id: bookingId,
+        destination: 'Casa Hacienda de Tejeros',
+        visit_date: booking.date,
+        visit_time: booking.time,
+        visitor_count: booking.guests,
+        status_message: statusMessage,
+        update_date: new Date().toLocaleString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: 'Asia/Manila'
+        })
+      };
+
+      // Import EmailJS dynamically
+      const emailjs = await import('@emailjs/browser');
       
-      // For now, just log the email that would be sent
-      console.log(`Status update email would be sent to ${booking.email}:`, { subject, message });
+      await emailjs.default.send(
+        process.env.REACT_APP_EMAILJS_SERVICE_ID,
+        'template_9wog0ug', // Booking status update template
+        emailData,
+        { publicKey: process.env.REACT_APP_EMAILJS_PUBLIC_KEY }
+      );
+      console.log(`Status update email sent successfully to ${booking.email}`);
       
-      /* Firebase Extensions email (commented out for now):
-      await updateDoc(doc(db, 'emails', `status-${bookingId}`), {
-        to: booking.email,
-        message: {
-          subject: subject,
-          html: message
-        }
-      });
-      */
     } catch (error) {
       console.error('Error sending status update email:', error);
+    }
+  },
+
+  // Send admin notification for new booking
+  async sendAdminBookingNotification(bookingId) {
+    try {
+      const bookingDoc = await getDoc(doc(db, 'bookings', bookingId));
+      const booking = bookingDoc.data();
+      
+      const emailData = {
+        notification_type: 'booking confirmation request',
+        from_name: booking.name,
+        from_email: booking.email,
+        phone_number: booking.phone || 'N/A',
+        booking_id: bookingId,
+        destination: 'Casa Hacienda de Tejeros',
+        visit_date: booking.date,
+        visit_time: booking.time,
+        visitor_count: booking.guests,
+        message: booking.specialRequests || 'No special requests',
+        submit_date: new Date().toLocaleString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: 'Asia/Manila'
+        })
+      };
+
+      // Import EmailJS dynamically
+      const emailjs = await import('@emailjs/browser');
+      
+      await emailjs.default.send(
+        process.env.REACT_APP_EMAILJS_ADMIN_SERVICE_ID,
+        'template_7al1inq', // Booking notification template
+        emailData,
+        { publicKey: process.env.REACT_APP_EMAILJS_ADMIN_PUBLIC_KEY }
+      );
+      console.log('Admin booking notification sent successfully!');
+      
+    } catch (error) {
+      console.error('Error sending admin booking notification:', error);
     }
   }
 };

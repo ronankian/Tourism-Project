@@ -212,6 +212,137 @@ const About = () => {
         </div>
       </section>
 
+      {/* Casa Hacienda de Tejeros Protocol */}
+      <section className="section-padding bg-white">
+        <div className="container-custom">
+          <div className="text-center mb-16">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-6">
+                Casa Hacienda de Tejeros Protocol
+              </h2>
+              <div className="w-24 h-1 bg-gradient-to-r from-green-500 to-emerald-500 mx-auto mb-6"></div>
+              <p className="text-xl text-gray-700 max-w-3xl mx-auto leading-relaxed">
+                Guidelines and protocols for visiting this historic and culturally significant heritage site
+              </p>
+            </motion.div>
+          </div>
+          
+
+          {/* Full Protocol List */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7 }}
+            className="max-w-5xl mx-auto"
+          >
+            <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-200">
+              <div className="space-y-6 text-gray-700">
+                <ol className="list-decimal pl-6 space-y-4 text-sm leading-relaxed">
+                  <li>
+                    Casa Hacienda is open on Mondays to Fridays at 8 AM - 5 PM. But, can be opened on 
+                    Saturdays/Sundays/Holidays as per request.
+                  </li>
+                  <li>
+                    Proper Attire e.g School/Office Uniform, Casual should be observed.
+                    <br />
+                    <strong>No wearing of shorts, sleeveless, sandals, sportswear, slippers are allowed for the visit.</strong>
+                  </li>
+                  <li>Observe cleanliness and orderliness at all times; No Littering; No Loitering, too.</li>
+                  <li>Observe proper decorum during the visit.</li>
+                  <li>There are toilets available; Male/Female; Please use it properly.</li>
+                  <li>You're not allowed to enter the "TUNNEL" nor touch any items on display.</li>
+                  <li>
+                    Since, CASA HACIENDA is under the on-going renovations, going to the 2nd floor, 3rd floor, Roof top 
+                    and basement is strictly prohibited.
+                  </li>
+                  <li>You can use the vicinity in front of it for Parking purposes.</li>
+                  <li>
+                    Likewise, the Back part of the place where Canas River is located is ALSO prohibited for security 
+                    reason.
+                  </li>
+                  <li>
+                    The Information Desk serves as the Inquiries site and Brochure Display Area. Also, the Municipal 
+                    Publication "Ang Dagat at Panulat-Mayor's Ricaf Corner is there.
+                  </li>
+                  <li>
+                    The Municipal Tourism Office is located at the Ground Floor where Mr. Ruben R. Quinto, Municipal 
+                    Tourism Officer performs his tasks and other matters. This is where you will be entertained for 
+                    reservation and other queries.
+                  </li>
+                  <li>
+                    For Reservations: Please submit the following
+                    <ul className="list-disc pl-6 mt-2 space-y-1">
+                      <li>Letter of Permission (encoded) (two copies) address to Mr. Ruben R. Quinto</li>
+                      <li>Authorization from the School Officials et.al.</li>
+                      <li>Inform/Set the schedule intended to visit</li>
+                    </ul>
+                    <p className="mt-2">
+                      <strong>Or Through:</strong> email <span className="text-primary-600 font-medium">tourismoffice886@gmail.com</span>, text message/or 
+                      call at <span className="text-primary-600 font-medium">(046) 886 9707</span>
+                    </p>
+                  </li>
+                  <li>No excuses on nearby towns/proximity regarding the protocol on Reservation.</li>
+                  <li>
+                    Other visitors such as Foreigners, Walk-in coming from Manila or near far places are allowed on the 
+                    unexpected schedule of visitations for humanitarian reasons
+                  </li>
+                  <li>
+                    CASA HACIENDA DE TEJEROS is no longer use as venue for parties, practices and unpermitted assemblies. 
+                    <strong>ONLY:</strong> Municipal Meetings, Organizations, Schools and others related to History, Heritage, respective 
+                    function per se. STILL, submit a Letter of Permission for its use/Follow the Protocol.
+                  </li>
+                  <li>
+                    The façade of the Casa Hacienda de Tejeros (within the vicinity) has benches; also serves as an open 
+                    park, open to public consumption, but still, please follow the protocol: seek permission inside. 
+                    Municipal Tourism Office. NOT AVAILABLE FOR PARKING (privately), PLEASE...
+                  </li>
+                  <li>
+                    CASA HACIENDA DE TEJEROS is closely supervised under the LGU-Rosario, Office of the Mayor and 
+                    Municipal Tourism Office.
+                  </li>
+                </ol>
+
+                <div className="mt-8 pt-6 border-t border-gray-200 text-center">
+                  <p className="text-base font-medium text-gray-800 mb-2">We hope you find the aforementioned items in order.</p>
+                  <p className="text-base text-gray-700 mb-4">Thank You.</p>
+                  <div className="bg-gray-50 rounded-lg p-4 inline-block">
+                    <p className="font-bold text-gray-900 text-lg m-0 leading-tight">RUBEN R. QUINTO</p>
+                    <p className="text-gray-700 m-0 leading-tight">Municipal Tourism Officer</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+          
+          {/* Protocol Summary */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.4 }}
+            className="mt-12 max-w-4xl mx-auto"
+          >
+            <div className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl p-8 text-white text-center">
+              <h3 className="text-2xl font-bold mb-4">Our Commitment to Excellence</h3>
+              <p className="text-lg leading-relaxed mb-6">
+                These protocols ensure that Casa Hacienda de Tejeros remains a well-preserved, respectful, and educational destination for all visitors. By following these guidelines, you help us maintain the historical integrity and cultural significance of this important heritage site.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link to="/booking" className="bg-white text-green-600 hover:bg-gray-100 font-medium py-3 px-6 rounded-lg transition-colors duration-200">
+                  Book Your Visit
+                </Link>
+                <Link to="/contact" className="border-2 border-white text-white hover:bg-white hover:text-green-600 font-medium py-3 px-6 rounded-lg transition-colors duration-200">
+                  Ask Questions
+                </Link>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
       {/* Privacy Policy Section */}
       <section className="section-padding bg-white">
         <div className="container-custom">

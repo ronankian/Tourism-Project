@@ -35,8 +35,8 @@ const Navbar = () => {
                 to={item.href}
                 className={`font-medium transition-colors duration-200 ${
                   isActive(item.href)
-                    ? 'text-[#df2e38]'
-                    : 'text-gray-700 hover:text-[#df2e38]'
+                    ? 'text-[#5d9c59]'
+                    : 'text-gray-700 hover:text-[#5d9c59]'
                 }`}
               >
                 {item.name}
@@ -48,7 +48,7 @@ const Navbar = () => {
           <div className="md:hidden absolute right-0">
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="text-gray-700 hover:text-[#df2e38]"
+              className="text-gray-700 hover:text-[#5d9c59]"
             >
               {isOpen ? '✕' : '☰'}
             </button>
@@ -66,8 +66,8 @@ const Navbar = () => {
                   onClick={() => setIsOpen(false)}
                   className={`font-medium transition-colors duration-200 ${
                     isActive(item.href)
-                      ? 'text-[#df2e38]'
-                      : 'text-gray-700 hover:text-[#df2e38]'
+                      ? 'text-[#5d9c59]'
+                      : 'text-gray-700 hover:text-[#5d9c59]'
                   }`}
                 >
                   {item.name}

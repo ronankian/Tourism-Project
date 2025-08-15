@@ -42,8 +42,12 @@ const FirebaseActionRedirect = () => {
       const pendingRegistrationData = localStorage.getItem('pendingRegistrationData');
       
       if (!email && !pendingRegistrationData) {
-        // Ask user to enter the email they used to request the link
-        setNeedEmailEntry(true);
+        // Show simple verification message and redirect to booking page
+        setActionSuccess(true);
+        setActionType('Email Verified');
+        setTimeout(() => {
+          navigate('/booking?success=true');
+        }, 2000);
         setReady(true);
         return;
       }
@@ -124,7 +128,7 @@ const FirebaseActionRedirect = () => {
 
                   await emailjs.send(
                     process.env.REACT_APP_EMAILJS_SERVICE_ID,
-                    process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
+                    'template_8yzllnv', // Booking confirmation template
                     templateParams,
                     { publicKey: process.env.REACT_APP_EMAILJS_PUBLIC_KEY }
                   );
@@ -150,7 +154,7 @@ const FirebaseActionRedirect = () => {
                     
                     await emailjs.send(
                       process.env.REACT_APP_EMAILJS_SERVICE_ID,
-                      process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
+                      'template_8yzllnv', // Booking confirmation template
                       {
                         to_email: payload.email,
                         to_name: payload.name || 'Guest',
@@ -177,7 +181,7 @@ const FirebaseActionRedirect = () => {
             localStorage.removeItem('pendingBookingEmail');
             // Keep session (no explicit logout per requirements)
             toast.success('Email verified and booking submitted successfully! Check your email for the permission letter.');
-            navigate('/booking');
+            navigate('/booking?success=true');
           } catch (err) {
             console.error('Error completing email link sign-in:', err);
             toast.error('Verification failed. Please try again.');
@@ -389,7 +393,7 @@ const FirebaseActionRedirect = () => {
         }
       }
       toast.success('Email verified. Please return to the booking page to continue.');
-      navigate('/booking');
+      navigate('/booking?success=true');
     } catch (error) {
       console.error('Error completing link sign-in with entered email:', error);
       toast.error('Unable to verify with the provided email. Please try again.');
@@ -542,6 +546,24 @@ const FirebaseActionRedirect = () => {
                     </button>
                   </>
                 )
+              ) : actionType === 'Email Verified' ? (
+                <>
+                  <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                    <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <h2 className="text-2xl font-bold text-green-600 mb-4">
+                    Email Verified!
+                  </h2>
+                  <p className="text-gray-600 mb-6">
+                    Your email has been successfully verified. Redirecting you back to the booking page...
+                  </p>
+                  
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
+                  </div>
+                </>
               ) : (
                 <>
                   <h2 className="text-2xl font-bold text-gray-900 mb-4">

@@ -20,18 +20,20 @@ const Contact = () => {
   const [recaptchaToken, setRecaptchaToken] = useState(null);
   const recaptchaRef = useRef(null);
   const [recaptchaRendered, setRecaptchaRendered] = useState(false);
+  const [recaptchaError, setRecaptchaError] = useState(false);
 
   // Define onload callback function (must be global)
     useEffect(() => {
-    // Debug: Check if environment variable is loaded
-    console.log('reCAPTCHA Site Key:', process.env.REACT_APP_RECAPTCHA_SITE_KEY);
-    console.log('All environment variables:', process.env);
-    console.log('Environment variable type:', typeof process.env.REACT_APP_RECAPTCHA_SITE_KEY);
-    console.log('Environment variable length:', process.env.REACT_APP_RECAPTCHA_SITE_KEY?.length);
+    // Debug: Check if environment variables are loaded
+    console.log('🔍 Contact reCAPTCHA Key:', process.env.REACT_APP_RECAPTCHA_CONTACT_SITE_KEY);
+    console.log('🔍 Legacy reCAPTCHA Key:', process.env.REACT_APP_RECAPTCHA_SITE_KEY);
+    console.log('🔍 All REACT_APP env vars:', Object.keys(process.env).filter(key => key.startsWith('REACT_APP_RECAPTCHA')));
     
-    // Check if site key is available
-    if (!process.env.REACT_APP_RECAPTCHA_SITE_KEY) {
-      console.error('❌ reCAPTCHA Site Key is missing! Please check your .env file.');
+    // Check if contact site key is available
+    const contactSiteKey = process.env.REACT_APP_RECAPTCHA_CONTACT_SITE_KEY || process.env.REACT_APP_RECAPTCHA_SITE_KEY;
+    console.log('🎯 Using Contact site key:', contactSiteKey);
+    if (!contactSiteKey) {
+      console.error('❌ Contact reCAPTCHA Site Key is missing! Please check your .env file.');
       return;
     }
     
@@ -57,7 +59,7 @@ const Contact = () => {
           }
           
           window.grecaptcha.render(recaptchaRef.current, {
-            'sitekey': process.env.REACT_APP_RECAPTCHA_SITE_KEY,
+            'sitekey': contactSiteKey,
             'theme': 'light',
             'callback': (token) => {
               console.log('reCAPTCHA success:', token);
@@ -89,8 +91,8 @@ const Contact = () => {
 
     // Only load script if site key is available
     let script = null;
-    if (process.env.REACT_APP_RECAPTCHA_SITE_KEY) {
-      console.log('✅ Loading reCAPTCHA script with site key:', process.env.REACT_APP_RECAPTCHA_SITE_KEY);
+    if (contactSiteKey) {
+      console.log('✅ Loading Contact reCAPTCHA script with site key:', contactSiteKey);
       
       // Create script element following official documentation
       script = document.createElement('script');
@@ -111,11 +113,29 @@ const Contact = () => {
     };
   }, [recaptchaRendered]);
 
+
+
   const resetRecaptcha = () => {
     if (window.grecaptcha) {
       window.grecaptcha.reset();
       setRecaptchaToken(null);
     }
+  };
+
+  // Validation function to check if all required fields are filled
+  const isFormValid = () => {
+    const { name, email, subject, message } = formData;
+    
+    // Check if all required fields are filled and not just whitespace
+    const allFieldsFilled = name.trim() && 
+                           email.trim() && 
+                           subject.trim() && 
+                           message.trim();
+    
+    // Check if reCAPTCHA is completed
+    const recaptchaCompleted = !!recaptchaToken;
+    
+    return allFieldsFilled && recaptchaCompleted;
   };
 
   // Email validation function
@@ -261,8 +281,8 @@ const Contact = () => {
     }
 
     // Check if EmailJS environment variables are available
-    if (!process.env.REACT_APP_EMAILJS_SERVICE_ID || 
-        !process.env.REACT_APP_EMAILJS_PUBLIC_KEY) {
+    if (!process.env.REACT_APP_EMAILJS_ADMIN_SERVICE_ID || 
+        !process.env.REACT_APP_EMAILJS_ADMIN_PUBLIC_KEY) {
       toast.error('Email service is not configured. Please contact the administrator.');
       return;
     }
@@ -288,10 +308,10 @@ const Contact = () => {
 
       // Send email via EmailJS
       await emailjs.send(
-        process.env.REACT_APP_EMAILJS_SERVICE_ID,
-        'template_9wog0ug', // Your contact form template ID
+        process.env.REACT_APP_EMAILJS_ADMIN_SERVICE_ID,
+        'template_4w0tahi', // Contact notification template
         emailData,
-        { publicKey: process.env.REACT_APP_EMAILJS_PUBLIC_KEY }
+        { publicKey: process.env.REACT_APP_EMAILJS_ADMIN_PUBLIC_KEY }
       );
 
       // Record submission time for rate limiting
@@ -384,7 +404,7 @@ const Contact = () => {
               </div>
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                  Full Name
+                  Full Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -403,7 +423,7 @@ const Contact = () => {
 
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Address
+                  Email Address <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="email"
@@ -422,7 +442,7 @@ const Contact = () => {
 
               <div>
                 <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
-                  Subject
+                  Subject <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -441,7 +461,7 @@ const Contact = () => {
 
               <div>
                 <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
-                  Message
+                  Message <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   id="message"
@@ -459,19 +479,37 @@ const Contact = () => {
               </div>
 
               {/* reCAPTCHA */}
-              <div className="flex justify-center">
-                <div 
-                  ref={recaptchaRef}
-                  id="recaptcha-container"
-                ></div>
+              <div className="space-y-3">
+                <div className="flex justify-center">
+                  <div 
+                    ref={recaptchaRef}
+                    id="recaptcha-container"
+                    className="min-h-[78px] w-full max-w-[304px] bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-center"
+                    style={{ minHeight: '78px' }}
+                    suppressHydrationWarning={true}
+                  >
+                  </div>
+                </div>
+                
+                {/* Required fields notice */}
+                <div className="text-center">
+                  <p className="text-sm text-gray-600">
+                    <span className="text-red-500">*</span> Required fields
+                  </p>
+                  {!isFormValid() && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Please fill all required fields and complete reCAPTCHA to send your message
+                    </p>
+                  )}
+                </div>
               </div>
 
               <button
                 type="submit"
-                disabled={isSubmitting || !recaptchaToken}
+                disabled={isSubmitting || !isFormValid()}
                 className={`btn-primary w-full py-3 text-lg font-medium transition-all duration-200 ${
-                  isSubmitting 
-                    ? 'opacity-70 cursor-not-allowed' 
+                  isSubmitting || !isFormValid()
+                    ? 'opacity-50 cursor-not-allowed' 
                     : 'hover:transform hover:scale-[1.02]'
                 }`}
               >

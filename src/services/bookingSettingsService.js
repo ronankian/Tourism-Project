@@ -17,7 +17,7 @@ class BookingSettingsService {
           smallGroupTourEnabled: true,
           organizationTourEnabled: true,
           specialRequestsEnabled: true,
-          attachmentsEnabled: true,
+          attachmentsEnabled: false,
           dailyBookingLimits: {
             smallGroupTour: {
               enabled: false,
