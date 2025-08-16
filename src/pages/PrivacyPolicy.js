@@ -4,7 +4,7 @@ import { Shield, Eye, Lock, Mail, FileText, Users } from 'lucide-react';
 
 const PrivacyPolicy = () => {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
       {/* Header */}
       <section className="relative py-20 overflow-hidden">
         <div 
@@ -38,16 +38,16 @@ const PrivacyPolicy = () => {
       </section>
 
       {/* Main Content */}
-      <div className="container-custom py-12">
+      <div className="container-custom py-8 md:py-12 px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
-          className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-8"
+          className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-4 md:p-8"
         >
           {/* Introduction */}
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Tourism Office of Rosario, Cavite</h2>
+            <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-4">Tourism Office of Rosario, Cavite</h2>
             <p className="text-gray-700 leading-relaxed mb-4">
               The Tourism Office of Rosario, Cavite is committed to protecting and securing your personal data 
               as required by Republic Act No. 10173 or the Data Privacy Act of 2012. We will process your 
@@ -72,7 +72,7 @@ const PrivacyPolicy = () => {
           <div className="mb-8">
             <div className="flex items-center mb-4">
               <Eye className="w-6 h-6 text-green-600 mr-3" />
-              <h3 className="text-xl font-bold text-gray-900">What Information We Collect</h3>
+              <h3 className="text-lg md:text-xl font-bold text-gray-900">What Information We Collect</h3>
             </div>
             <p className="text-gray-700 leading-relaxed mb-4">
               We may collect the following personal information when you use our tourism website and services:
@@ -129,7 +129,7 @@ const PrivacyPolicy = () => {
           <div className="mb-8">
             <div className="flex items-center mb-4">
               <Users className="w-6 h-6 text-green-600 mr-3" />
-              <h3 className="text-xl font-bold text-gray-900">How We Use Your Information</h3>
+              <h3 className="text-lg md:text-xl font-bold text-gray-900">How We Use Your Information</h3>
             </div>
             <p className="text-gray-700 leading-relaxed mb-4">
               We collect and use your personal information to provide you with better tourism services and for the following specific purposes:
@@ -173,7 +173,7 @@ const PrivacyPolicy = () => {
           <div className="mb-8">
             <div className="flex items-center mb-4">
               <Lock className="w-6 h-6 text-green-600 mr-3" />
-              <h3 className="text-xl font-bold text-gray-900">Data Security and Protection</h3>
+              <h3 className="text-lg md:text-xl font-bold text-gray-900">Data Security and Protection</h3>
             </div>
             <p className="text-gray-700 leading-relaxed mb-4">
               The Tourism Office of Rosario is committed to ensuring that your information is secure. We have implemented comprehensive security measures to safeguard your personal data:
@@ -208,7 +208,7 @@ const PrivacyPolicy = () => {
           <div className="mb-8">
             <div className="flex items-center mb-4">
               <FileText className="w-6 h-6 text-green-600 mr-3" />
-              <h3 className="text-xl font-bold text-gray-900">Data Retention and Your Rights</h3>
+              <h3 className="text-lg md:text-xl font-bold text-gray-900">Data Retention and Your Rights</h3>
             </div>
             <p className="text-gray-700 leading-relaxed mb-4">
               Under the Data Privacy Act of 2012, you have several rights regarding your personal data:
@@ -275,7 +275,7 @@ const PrivacyPolicy = () => {
           <div className="bg-green-50 border border-green-200 rounded-lg p-6">
             <div className="flex items-center mb-4">
               <Mail className="w-6 h-6 text-green-600 mr-3" />
-              <h3 className="text-xl font-bold text-green-900">Contact Us for Privacy Concerns</h3>
+              <h3 className="text-lg md:text-xl font-bold text-green-900">Contact Us for Privacy Concerns</h3>
             </div>
             <p className="text-green-800 mb-4">
               For any questions, concerns, or requests regarding your personal data and privacy rights, please contact the Municipal Tourism Office:

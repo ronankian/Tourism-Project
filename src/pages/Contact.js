@@ -21,6 +21,7 @@ const Contact = () => {
   const recaptchaRef = useRef(null);
   const [recaptchaRendered, setRecaptchaRendered] = useState(false);
   const [recaptchaError, setRecaptchaError] = useState(false);
+  const [recaptchaFailedToLoad, setRecaptchaFailedToLoad] = useState(false);
 
   // Define onload callback function (must be global)
     useEffect(() => {
@@ -34,8 +35,17 @@ const Contact = () => {
     console.log('🎯 Using Contact site key:', contactSiteKey);
     if (!contactSiteKey) {
       console.error('❌ Contact reCAPTCHA Site Key is missing! Please check your .env file.');
+      setRecaptchaFailedToLoad(true);
       return;
     }
+
+    // Set a timeout to detect if reCAPTCHA fails to load
+    const loadTimeout = setTimeout(() => {
+      if (!recaptchaRendered) {
+        console.log('⏰ reCAPTCHA failed to load within timeout');
+        setRecaptchaFailedToLoad(true);
+      }
+    }, 10000); // 10 second timeout
     
     // Check if reCAPTCHA script is already loaded
     if (window.grecaptcha) {
@@ -77,6 +87,7 @@ const Contact = () => {
             }
           });
           setRecaptchaRendered(true);
+          setRecaptchaFailedToLoad(false); // Clear failed load state on success
           console.log('✅ reCAPTCHA rendered successfully');
         } catch (error) {
           console.error('❌ Error rendering reCAPTCHA:', error);
@@ -106,10 +117,14 @@ const Contact = () => {
 
     // Cleanup function
     return () => {
+      // Clear the timeout
+      clearTimeout(loadTimeout);
+      
       if (script && script.parentNode) {
         script.parentNode.removeChild(script);
       }
       // Don't delete window.onloadCallback to prevent issues with multiple renders
+      setRecaptchaFailedToLoad(false);
     };
   }, [recaptchaRendered]);
 
@@ -346,7 +361,7 @@ const Contact = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
       {/* Header */}
       <section className="relative py-20 overflow-hidden">
         <div 
@@ -379,15 +394,15 @@ const Contact = () => {
         </div>
       </section>
 
-      <div className="container-custom py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+      <div className="container-custom py-8 md:py-12 px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
           {/* Contact Form */}
           <motion.div
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8 }}
           >
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">Send us a Message</h2>
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">Send us a Message</h2>
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Honeypot field - hidden from users, visible to bots */}
               <div style={{ display: 'none' }}>
@@ -480,6 +495,28 @@ const Contact = () => {
 
               {/* reCAPTCHA */}
               <div className="space-y-3">
+                {/* reCAPTCHA Failed to Load Message */}
+                {recaptchaFailedToLoad && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+                    <div className="flex items-center justify-center space-x-2 text-red-700 mb-2">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                      </svg>
+                      <span className="font-medium">reCAPTCHA Failed to Load</span>
+                    </div>
+                    <p className="text-red-600 text-sm">
+                      Please refresh the page to reload the verification widget.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => window.location.reload()}
+                      className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+                    >
+                      Refresh Page
+                    </button>
+                  </div>
+                )}
+                
                 <div className="flex justify-center">
                   <div 
                     ref={recaptchaRef}
@@ -536,7 +573,7 @@ const Contact = () => {
             className="space-y-8"
           >
             <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-6">Get in Touch</h2>
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">Get in Touch</h2>
               <p className="text-lg text-gray-600 mb-8">
                 Our team is here to help you plan the perfect visit to Casa Hacienda de Tejeros in Rosario, Cavite. 
                 Feel free to reach out with any questions or special requests.

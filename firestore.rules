@@ -42,5 +42,11 @@ service cloud.firestore {
       allow read: if true; // Allow public read for news page
       allow create, update, delete: if true; // Allow write operations (admin check done in application)
     }
+    
+    // Advisories - public read, admin write (admin check done client-side)
+    match /advisories/{advisoryId} {
+      allow read: if true; // Allow public read for ticker display
+      allow create, update, delete: if true; // Allow write operations (admin check done in application)
+    }
   }
 } 

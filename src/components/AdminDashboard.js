@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Users, Clock, CheckCircle, XCircle, Eye, Mail, Settings, Power, PowerOff, AlertTriangle, BarChart3, TrendingUp, Phone, MapPin, Globe } from 'lucide-react';
+import { Calendar, Users, Clock, CheckCircle, XCircle, Eye, Mail, Settings, Power, PowerOff, AlertTriangle, BarChart3, TrendingUp, Phone, MapPin, Globe, Megaphone, LogOut } from 'lucide-react';
 import { bookingService } from '../services/bookingService';
 import { bookingSettingsService } from '../services/bookingSettingsService';
+import { advisoryService } from '../services/advisoryService';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import { useContact } from '../contexts/ContactContext';
@@ -15,7 +16,17 @@ const AdminDashboard = () => {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [adminNotes, setAdminNotes] = useState('');
-  const [activeTab, setActiveTab] = useState('bookings'); // 'bookings', 'settings', or 'contact'
+  const [activeTab, setActiveTab] = useState('bookings'); // 'bookings', 'settings', 'contact', or 'advisory'
+  
+  // Advisory state
+  const [advisories, setAdvisories] = useState([]);
+  const [advisoryLoading, setAdvisoryLoading] = useState(false);
+  const [showAdvisoryModal, setShowAdvisoryModal] = useState(false);
+  const [editingAdvisory, setEditingAdvisory] = useState(null);
+  const [advisoryForm, setAdvisoryForm] = useState({
+    message: '',
+    isActive: true
+  });
   
   // Booking settings state
   const [bookingSettings, setBookingSettings] = useState(null);
@@ -54,6 +65,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     loadBookings();
     loadBookingSettings();
+    loadAdvisories();
   }, []);
 
   const loadBookings = async () => {
@@ -105,6 +117,70 @@ const AdminDashboard = () => {
       toast.error('Failed to load booking settings');
     } finally {
       setSettingsLoading(false);
+    }
+  };
+
+  const loadAdvisories = async () => {
+    try {
+      setAdvisoryLoading(true);
+      const advisories = await advisoryService.getAdvisories();
+      setAdvisories(advisories);
+    } catch (error) {
+      console.error('Error loading advisories:', error);
+      toast.error('Failed to load advisories');
+    } finally {
+      setAdvisoryLoading(false);
+    }
+  };
+
+  const handleAddAdvisory = async () => {
+    try {
+      if (!advisoryForm.message.trim()) {
+        toast.error('Please enter an advisory message');
+        return;
+      }
+
+      if (editingAdvisory) {
+        await advisoryService.updateAdvisory(editingAdvisory.id, advisoryForm);
+        toast.success('Advisory updated successfully');
+      } else {
+        await advisoryService.addAdvisory(advisoryForm);
+        toast.success('Advisory added successfully');
+      }
+
+      setShowAdvisoryModal(false);
+      setEditingAdvisory(null);
+      setAdvisoryForm({ message: '', isActive: true });
+      loadAdvisories();
+    } catch (error) {
+      console.error('Error saving advisory:', error);
+      toast.error('Failed to save advisory');
+    }
+  };
+
+  const handleToggleAdvisoryStatus = async (id) => {
+    try {
+      const advisory = advisories.find(a => a.id === id);
+      const newStatus = !advisory.isActive;
+      await advisoryService.toggleAdvisoryStatus(id, newStatus);
+      toast.success(`Advisory ${newStatus ? 'activated' : 'deactivated'} successfully`);
+      loadAdvisories();
+    } catch (error) {
+      console.error('Error toggling advisory status:', error);
+      toast.error('Failed to update advisory status');
+    }
+  };
+
+  const handleDeleteAdvisory = async (id) => {
+    if (window.confirm('Are you sure you want to delete this advisory?')) {
+      try {
+        await advisoryService.deleteAdvisory(id);
+        toast.success('Advisory deleted successfully');
+        loadAdvisories();
+      } catch (error) {
+        console.error('Error deleting advisory:', error);
+        toast.error('Failed to delete advisory');
+      }
     }
   };
 
@@ -314,65 +390,82 @@ const AdminDashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <section className="bg-gradient-to-r from-[#5d9c59] to-[#4a7c47] text-white py-12">
-        <div className="container-custom">
+      <section className="bg-gradient-to-r from-[#5d9c59] to-[#4a7c47] text-white py-8 md:py-12">
+        <div className="container-custom px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-3xl font-bold mb-2">Admin Dashboard</h1>
-              <p className="text-white/80">Manage bookings and configure settings</p>
+              <h1 className="text-2xl md:text-3xl font-bold mb-2">Admin Dashboard</h1>
+              <p className="text-white/80 text-sm md:text-base">Manage bookings and configure settings</p>
             </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  adminLogout();
-                }}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
-              >
-                Logout
-              </button>
-            </div>
+                          <button
+              onClick={() => {
+                adminLogout();
+              }}
+              className="flex items-center space-x-2 px-3 md:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              title="Logout"
+            >
+              <LogOut className="w-4 h-4 md:w-5 md:h-5" />
+              <span className="hidden sm:inline text-sm md:text-base font-medium">Logout</span>
+            </button>
           </div>
           
           {/* Tabs */}
           <div className="border-b border-white/20">
-            <nav className="flex space-x-8">
+            <nav className="flex flex-wrap space-x-2 md:space-x-8">
               <button
                 onClick={() => setActiveTab('bookings')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                className={`py-3 md:py-4 px-2 md:px-1 border-b-2 font-medium text-xs md:text-sm ${
                   activeTab === 'bookings'
                     ? 'border-white text-white'
                     : 'border-transparent text-white/70 hover:text-white hover:border-white/50'
                 }`}
               >
-                <div className="flex items-center space-x-2">
-                  <Calendar className="w-5 h-5" />
-                  <span>Bookings</span>
+                <div className="flex items-center space-x-1 md:space-x-2">
+                  <Calendar className="w-4 h-4 md:w-5 md:h-5" />
+                  <span className="hidden sm:inline">Bookings</span>
+                  <span className="sm:hidden">Book</span>
                 </div>
               </button>
               <button
                 onClick={() => setActiveTab('settings')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                className={`py-3 md:py-4 px-2 md:px-1 border-b-2 font-medium text-xs md:text-sm ${
                   activeTab === 'settings'
                     ? 'border-white text-white'
                     : 'border-transparent text-white/70 hover:text-white hover:border-white/50'
                 }`}
               >
-                <div className="flex items-center space-x-2">
-                  <Settings className="w-5 h-5" />
-                  <span>Booking Settings</span>
+                <div className="flex items-center space-x-1 md:space-x-2">
+                  <Settings className="w-4 h-4 md:w-5 md:h-5" />
+                  <span className="hidden sm:inline">Booking Settings</span>
+                  <span className="sm:hidden">Settings</span>
                 </div>
               </button>
               <button
                 onClick={() => setActiveTab('contact')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                className={`py-3 md:py-4 px-2 md:px-1 border-b-2 font-medium text-xs md:text-sm ${
                   activeTab === 'contact'
                     ? 'border-white text-white'
                     : 'border-transparent text-white/70 hover:text-white hover:border-white/50'
                 }`}
               >
-                <div className="flex items-center space-x-2">
-                  <Phone className="w-5 h-5" />
-                  <span>Contact Settings</span>
+                <div className="flex items-center space-x-1 md:space-x-2">
+                  <Phone className="w-4 h-4 md:w-5 md:h-5" />
+                  <span className="hidden sm:inline">Contact Settings</span>
+                  <span className="sm:hidden">Contact</span>
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('advisory')}
+                className={`py-3 md:py-4 px-2 md:px-1 border-b-2 font-medium text-xs md:text-sm ${
+                  activeTab === 'advisory'
+                    ? 'border-white text-white'
+                    : 'border-transparent text-white/70 hover:text-white hover:border-white/50'
+                }`}
+              >
+                <div className="flex items-center space-x-1 md:space-x-2">
+                  <Megaphone className="w-4 h-4 md:w-5 md:h-5" />
+                  <span className="hidden sm:inline">Advisory Messages</span>
+                  <span className="sm:hidden">Advisory</span>
                 </div>
               </button>
             </nav>
@@ -380,11 +473,11 @@ const AdminDashboard = () => {
         </div>
       </section>
 
-      <div className="container-custom py-8">
+      <div className="container-custom py-6 md:py-8 px-4 sm:px-6 lg:px-8">
         {activeTab === 'bookings' && (
           <>
             {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
               {stats.map((stat, index) => (
                 <motion.div
                   key={stat.label}
@@ -411,11 +504,11 @@ const AdminDashboard = () => {
         {activeTab === 'bookings' && (
           <>
             {/* Filters */}
-            <div className="bg-white rounded-lg p-6 shadow-sm mb-6">
-              <div className="flex flex-wrap gap-4">
+            <div className="bg-white rounded-lg p-4 md:p-6 shadow-sm mb-6">
+              <div className="flex flex-wrap gap-2 md:gap-4">
                 <button
                   onClick={() => setSelectedStatus('all')}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  className={`px-3 md:px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base ${
                     selectedStatus === 'all' 
                       ? 'bg-[#5d9c59] text-white' 
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -425,7 +518,7 @@ const AdminDashboard = () => {
                 </button>
                 <button
                   onClick={() => setSelectedStatus('pending')}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  className={`px-3 md:px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base ${
                     selectedStatus === 'pending' 
                       ? 'bg-yellow-500 text-white' 
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -435,7 +528,7 @@ const AdminDashboard = () => {
                 </button>
                 <button
                   onClick={() => setSelectedStatus('verified')}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  className={`px-3 md:px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base ${
                     selectedStatus === 'verified' 
                       ? 'bg-blue-500 text-white' 
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -445,7 +538,7 @@ const AdminDashboard = () => {
                 </button>
                 <button
                   onClick={() => setSelectedStatus('approved')}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  className={`px-3 md:px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base ${
                     selectedStatus === 'approved' 
                       ? 'bg-green-500 text-white' 
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -473,22 +566,22 @@ const AdminDashboard = () => {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full">
+                  <table className="w-full min-w-full">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Customer
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Package
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Date
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Status
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Actions
                         </th>
                       </tr>
@@ -502,31 +595,31 @@ const AdminDashboard = () => {
                           transition={{ duration: 0.3, delay: index * 0.05 }}
                           className="hover:bg-gray-50"
                         >
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-3 md:px-6 py-4 whitespace-nowrap">
                             <div>
                               <div className="text-sm font-medium text-gray-900">{booking.name}</div>
-                              <div className="text-sm text-gray-500">{booking.email}</div>
-                              <div className="text-sm text-gray-500">{booking.phone}</div>
+                              <div className="text-xs md:text-sm text-gray-500">{booking.email}</div>
+                              <div className="text-xs md:text-sm text-gray-500">{booking.phone}</div>
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-3 md:px-6 py-4 whitespace-nowrap">
                             <div>
                               <div className="text-sm font-medium text-gray-900">{booking.packageName}</div>
-                              <div className="text-sm text-gray-500">{booking.guests} guests</div>
-                              <div className="text-sm text-gray-500">{booking.packagePrice}</div>
+                              <div className="text-xs md:text-sm text-gray-500">{booking.guests} guests</div>
+                              <div className="text-xs md:text-sm text-gray-500">{booking.packagePrice}</div>
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <td className="px-3 md:px-6 py-4 whitespace-nowrap text-xs md:text-sm text-gray-900">
                             {booking.date}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(booking.status)}`}>
+                          <td className="px-3 md:px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex items-center px-2 py-0.5 md:px-2.5 rounded-full text-xs font-medium ${getStatusColor(booking.status)}`}>
                               {getStatusIcon(booking.status)}
                               <span className="ml-1">{booking.status}</span>
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <div className="flex space-x-2">
+                          <td className="px-3 md:px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div className="flex space-x-1 md:space-x-2">
                               <button
                                 onClick={() => {
                                   setSelectedBooking(booking);
@@ -589,13 +682,13 @@ const AdminDashboard = () => {
             ) : bookingSettings ? (
               <>
                 {/* Tour Package Controls */}
-                <div className="bg-white rounded-lg p-6 shadow-sm">
+                <div className="bg-white rounded-lg p-4 md:p-6 shadow-sm">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                     <Users className="w-5 h-5 mr-2 text-[#5d9c59]" />
                     Tour Package Availability
                   </h3>
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-gray-200 rounded-lg space-y-3 sm:space-y-0">
                       <div>
                         <h4 className="font-medium text-gray-900">Small Group Tour</h4>
                         <p className="text-sm text-gray-600">For individuals, couples, families, or small gatherings (max 20 guests)</p>
@@ -619,7 +712,7 @@ const AdminDashboard = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-gray-200 rounded-lg space-y-3 sm:space-y-0">
                       <div>
                         <h4 className="font-medium text-gray-900">Organization & Institutional Tour</h4>
                         <p className="text-sm text-gray-600">For schools, offices, and cultural organizations (no guest limit)</p>
@@ -658,13 +751,13 @@ const AdminDashboard = () => {
                 </div>
 
                 {/* Optional Form Fields Controls */}
-                <div className="bg-white rounded-lg p-6 shadow-sm">
+                <div className="bg-white rounded-lg p-4 md:p-6 shadow-sm">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                     <Settings className="w-5 h-5 mr-2 text-[#5d9c59]" />
                     Optional Form Fields
                   </h3>
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-gray-200 rounded-lg space-y-3 sm:space-y-0">
                       <div>
                         <h4 className="font-medium text-gray-900">Special Requests Field</h4>
                         <p className="text-sm text-gray-600">Allow customers to add special requirements or requests</p>
@@ -688,7 +781,7 @@ const AdminDashboard = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-gray-200 rounded-lg space-y-3 sm:space-y-0">
                       <div>
                         <h4 className="font-medium text-gray-900">File Attachments</h4>
                         <p className="text-sm text-gray-600">Allow customers to upload documents and files</p>
@@ -715,7 +808,7 @@ const AdminDashboard = () => {
                 </div>
 
                 {/* Daily Booking Limits Controls */}
-                <div className="bg-white rounded-lg p-6 shadow-sm">
+                <div className="bg-white rounded-lg p-4 md:p-6 shadow-sm">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                     <BarChart3 className="w-5 h-5 mr-2 text-[#5d9c59]" />
                     Daily Booking Limits
@@ -728,7 +821,7 @@ const AdminDashboard = () => {
                         <TrendingUp className="w-4 h-4 mr-2 text-blue-600" />
                         Today's Booking Statistics ({new Date().toLocaleDateString()})
                       </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="bg-white p-3 rounded border">
                           <div className="text-sm text-gray-600">Small Group Tour</div>
                           <div className="text-lg font-semibold text-gray-900">
@@ -768,7 +861,7 @@ const AdminDashboard = () => {
                   <div className="space-y-4">
                     {/* Small Group Tour Limit */}
                     <div className="p-4 border border-gray-200 rounded-lg">
-                      <div className="flex items-center justify-between mb-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 space-y-2 sm:space-y-0">
                         <div>
                           <h4 className="font-medium text-gray-900">Small Group Tour Daily Limit</h4>
                           <p className="text-sm text-gray-600">Limit the number of small group bookings per day</p>
@@ -812,7 +905,7 @@ const AdminDashboard = () => {
 
                     {/* Organization Tour Limit */}
                     <div className="p-4 border border-gray-200 rounded-lg">
-                      <div className="flex items-center justify-between mb-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 space-y-2 sm:space-y-0">
                         <div>
                           <h4 className="font-medium text-gray-900">Organization Tour Daily Limit</h4>
                           <p className="text-sm text-gray-600">Limit the number of organization bookings per day</p>
@@ -867,13 +960,13 @@ const AdminDashboard = () => {
                 </div>
 
                 {/* Maintenance Mode Controls */}
-                <div className="bg-white rounded-lg p-6 shadow-sm">
+                <div className="bg-white rounded-lg p-4 md:p-6 shadow-sm">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                     <Power className="w-5 h-5 mr-2 text-[#5d9c59]" />
                     Maintenance Mode
                   </h3>
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-gray-200 rounded-lg space-y-3 sm:space-y-0">
                       <div>
                         <h4 className="font-medium text-gray-900">Booking System Maintenance</h4>
                         <p className="text-sm text-gray-600">Temporarily disable the booking system for maintenance</p>
@@ -898,7 +991,7 @@ const AdminDashboard = () => {
                     </div>
 
                     {/* Maintenance Schedule */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Start Time
@@ -976,7 +1069,7 @@ const AdminDashboard = () => {
             ) : (
               <>
                 {/* Contact Settings */}
-                <div className="bg-white rounded-lg p-6 shadow-sm">
+                <div className="bg-white rounded-lg p-4 md:p-6 shadow-sm">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                     <Phone className="w-5 h-5 mr-2 text-[#5d9c59]" />
                     Contact Information
@@ -984,7 +1077,7 @@ const AdminDashboard = () => {
                   
                   <div className="space-y-6">
                     {/* Basic Information */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Business Name
@@ -1060,7 +1153,7 @@ const AdminDashboard = () => {
                           />
                         </div>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                               Weekends
@@ -1096,7 +1189,7 @@ const AdminDashboard = () => {
                         <Globe className="w-4 h-4 mr-2 text-gray-600" />
                         Social Media (Optional)
                       </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             Facebook
@@ -1163,12 +1256,125 @@ const AdminDashboard = () => {
             )}
           </div>
         )}
+
+        {/* Advisory Messages Tab */}
+        {activeTab === 'advisory' && (
+          <div className="space-y-6">
+            {advisoryLoading ? (
+              <div className="p-8 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#5d9c59] mx-auto"></div>
+                <p className="mt-2 text-gray-600">Loading advisory messages...</p>
+              </div>
+            ) : (
+              <>
+                <div className="bg-white rounded-lg p-4 md:p-6 shadow-sm">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <Megaphone className="w-5 h-5 mr-2 text-[#5d9c59]" />
+                    Advisory Messages
+                  </h3>
+                  <div className="space-y-4">
+                    {advisories.length === 0 ? (
+                      <p className="text-gray-600">No advisory messages found. Add a new one!</p>
+                    ) : (
+                      advisories.map((advisory, index) => (
+                        <div key={advisory.id} className="bg-gray-50 p-4 rounded-lg">
+                          <p className="text-sm text-gray-900 font-medium">{advisory.message}</p>
+                          <p className="text-xs text-gray-600 mt-1">
+                            Status: {advisory.isActive ? 'Active' : 'Inactive'}
+                            {advisory.isActive && advisory.endTime && (
+                              <>
+                                , Expires: {new Date(advisory.endTime).toLocaleDateString()}
+                              </>
+                            )}
+                          </p>
+                                                     <div className="flex items-center mt-2 text-gray-600 text-sm">
+                             <Clock className="w-4 h-4 mr-1" />
+                             Created: {advisory.createdAt ? new Date(advisory.createdAt.toDate()).toLocaleDateString() : 'N/A'}
+                           </div>
+                          <div className="flex items-center mt-2 text-gray-600 text-sm">
+                            <Settings className="w-4 h-4 mr-1" />
+                            <button
+                              onClick={() => {
+                                setEditingAdvisory(advisory);
+                                setAdvisoryForm({
+                                  message: advisory.message,
+                                  isActive: advisory.isActive
+                                });
+                                setShowAdvisoryModal(true);
+                              }}
+                              className="text-[#5d9c59] hover:text-[#4a7c47] text-sm"
+                            >
+                              Edit
+                            </button>
+                            <span className="mx-1">|</span>
+                            <button
+                              onClick={() => handleToggleAdvisoryStatus(advisory.id)}
+                              className="text-red-600 hover:text-red-800 text-sm"
+                            >
+                              {advisory.isActive ? 'Deactivate' : 'Activate'}
+                            </button>
+                            <span className="mx-1">|</span>
+                            <button
+                              onClick={() => handleDeleteAdvisory(advisory.id)}
+                              className="text-red-600 hover:text-red-800 text-sm"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                                 <div className="bg-white rounded-lg p-4 md:p-6 shadow-sm">
+                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                     <Megaphone className="w-5 h-5 mr-2 text-[#5d9c59]" />
+                     Add New Advisory Message
+                   </h3>
+                   <div className="space-y-4">
+                     <div>
+                       <label className="block text-sm font-medium text-gray-700 mb-2">
+                         Advisory Message
+                       </label>
+                       <textarea
+                         value={advisoryForm.message}
+                         onChange={(e) => setAdvisoryForm(prev => ({ ...prev, message: e.target.value }))}
+                         rows="4"
+                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent"
+                         placeholder="Enter your advisory message here..."
+                       />
+                     </div>
+                     <div className="flex items-center">
+                       <input
+                         type="checkbox"
+                         id="isActive"
+                         checked={advisoryForm.isActive}
+                         onChange={(e) => setAdvisoryForm(prev => ({ ...prev, isActive: e.target.checked }))}
+                         className="mr-2"
+                       />
+                       <label htmlFor="isActive" className="text-sm text-gray-700">
+                         Make this message active
+                       </label>
+                     </div>
+                     <button
+                       onClick={() => setShowAdvisoryModal(true)}
+                       className="px-6 py-2 bg-[#5d9c59] text-white rounded-lg hover:bg-[#4a7c47] transition-colors font-medium"
+                     >
+                       Add Advisory
+                     </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Modal for booking details and actions */}
       {showModal && selectedBooking && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-4 md:p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold mb-4">Booking Details</h3>
             
             <div className="space-y-3 mb-4">
@@ -1232,6 +1438,70 @@ const AdminDashboard = () => {
                   </button>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal for managing advisory messages */}
+      {showAdvisoryModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-4 md:p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">
+              {editingAdvisory ? 'Edit Advisory Message' : 'Add New Advisory Message'}
+            </h3>
+            
+            <div className="space-y-3 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Advisory Message
+                </label>
+                <textarea
+                  value={advisoryForm.message}
+                  onChange={(e) => setAdvisoryForm(prev => ({ ...prev, message: e.target.value }))}
+                  rows="4"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent"
+                  placeholder="Enter your advisory message here..."
+                />
+              </div>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="isActive"
+                  checked={advisoryForm.isActive}
+                  onChange={(e) => setAdvisoryForm(prev => ({ ...prev, isActive: e.target.checked }))}
+                  className="mr-2"
+                />
+                <label htmlFor="isActive" className="text-sm text-gray-700">
+                  Make this message active
+                </label>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Expiration Date (optional)
+                </label>
+                <input
+                  type="datetime-local"
+                  value={advisoryForm.endTime || ''}
+                  onChange={(e) => setAdvisoryForm(prev => ({ ...prev, endTime: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowAdvisoryModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddAdvisory}
+                className="flex-1 px-4 py-2 bg-[#5d9c59] text-white rounded-lg hover:bg-[#4a7c47] transition-colors font-medium"
+              >
+                {editingAdvisory ? 'Update Advisory' : 'Add Advisory'}
+              </button>
             </div>
           </div>
         </div>

@@ -42,7 +42,7 @@
   }
   
   .container-custom {
-    @apply max-w-7xl mx-auto;
+    @apply max-w-6xl mx-auto;
   }
 }
 
@@ -58,4 +58,19 @@
   .bg-gradient-secondary {
     @apply bg-gradient-to-r from-secondary-500 to-rosario-500;
   }
+  
+  .animate-scroll {
+    animation: scroll 5s linear infinite;
+  }
+  
+  @keyframes scroll {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+  
+
 } 

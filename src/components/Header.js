@@ -29,8 +29,8 @@ const Header = () => {
   };
 
   return (
-    <div className="bg-[#5d9c59] text-white py-2 px-4">
-      <div className="max-w-7xl mx-auto flex justify-between items-center text-sm">
+    <div className="hidden lg:block bg-[#5d9c59] text-white py-2 px-4">
+      <div className="max-w-6xl mx-auto flex justify-between items-center text-sm">
         {/* Left side - Contact Information */}
         <div className="flex items-center space-x-6">
           {/* Facebook */}

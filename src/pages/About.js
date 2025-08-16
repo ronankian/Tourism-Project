@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 const About = () => {
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen overflow-x-hidden">
       {/* Hero Section */}
       <section className="relative py-20 overflow-hidden">
         <div 
@@ -40,7 +40,7 @@ const About = () => {
       </section>
 
       {/* Mission & Vision */}
-      <section className="section-padding bg-gradient-to-br from-gray-50 to-green-50">
+      <section className="py-12 md:py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-gray-50 to-green-50">
         <div className="container-custom">
           <div className="text-center mb-16">
             <motion.div
@@ -130,7 +130,7 @@ const About = () => {
       </section>
 
       {/* Municipal Tourism Authority */}
-      <section className="section-padding bg-gray-50">
+      <section className="py-12 md:py-16 px-4 sm:px-6 lg:px-8 bg-gray-50">
         <div className="container-custom">
           <div className="text-center mb-16">
             <motion.div
@@ -148,7 +148,7 @@ const About = () => {
             </motion.div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -213,7 +213,7 @@ const About = () => {
       </section>
 
       {/* Casa Hacienda de Tejeros Protocol */}
-      <section className="section-padding bg-white">
+      <section className="py-12 md:py-16 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="container-custom">
           <div className="text-center mb-16">
             <motion.div
@@ -237,7 +237,7 @@ const About = () => {
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7 }}
-            className="max-w-5xl mx-auto"
+            className="max-w-6xl mx-auto"
           >
             <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-200">
               <div className="space-y-6 text-gray-700">
@@ -344,7 +344,7 @@ const About = () => {
       </section>
 
       {/* Privacy Policy Section */}
-      <section className="section-padding bg-white">
+      <section className="py-12 md:py-16 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="container-custom">
           <div className="text-center mb-16">
             <motion.div
@@ -405,7 +405,7 @@ const About = () => {
 
 
       {/* Credits Section */}
-      <section className="section-padding bg-gray-50">
+      <section className="py-12 md:py-16 px-4 sm:px-6 lg:px-8 bg-gray-50">
         <div className="container-custom">
           <div className="text-center mb-16">
             <motion.div
@@ -457,7 +457,7 @@ const About = () => {
       </section>
 
       {/* Contact CTA */}
-      <section className="section-padding text-white" style={{ background: 'linear-gradient(135deg, rgba(93, 156, 89, 0.8) 25%, rgba(223, 46, 56, 0.8) 100%)' }}>
+      <section className="py-12 md:py-16 px-4 sm:px-6 lg:px-8 text-white" style={{ background: 'linear-gradient(135deg, rgba(93, 156, 89, 0.8) 25%, rgba(223, 46, 56, 0.8) 100%)' }}>
         <div className="container-custom text-center">
           <h2 className="text-4xl font-bold mb-6">Ready to Explore Casa Hacienda de Tejeros?</h2>
           <p className="text-xl mb-8 max-w-2xl mx-auto">

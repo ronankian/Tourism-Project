@@ -141,6 +141,7 @@ const Booking = () => {
   const recaptchaRef = useRef(null);
   const [recaptchaRendered, setRecaptchaRendered] = useState(false);
   const [recaptchaError, setRecaptchaError] = useState(false);
+  const [recaptchaFailedToLoad, setRecaptchaFailedToLoad] = useState(false);
   const [widgetId, setWidgetId] = useState(null);
   const [showProtocolModal, setShowProtocolModal] = useState(false);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
@@ -158,8 +159,17 @@ const Booking = () => {
     console.log('🎯 Using Booking site key:', bookingSiteKey);
     if (!bookingSiteKey) {
       console.error('❌ Booking reCAPTCHA Site Key is missing! Please check your .env file.');
+      setRecaptchaFailedToLoad(true);
       return;
     }
+
+    // Set a timeout to detect if reCAPTCHA fails to load
+    const loadTimeout = setTimeout(() => {
+      if (!recaptchaRendered) {
+        console.log('⏰ reCAPTCHA failed to load within timeout');
+        setRecaptchaFailedToLoad(true);
+      }
+    }, 10000); // 10 second timeout
     
     // Check if reCAPTCHA script is already loaded
     if (window.grecaptcha) {
@@ -254,6 +264,7 @@ const Booking = () => {
         console.log('🆔 New widget ID:', newWidgetId);
         setWidgetId(newWidgetId);
         setRecaptchaRendered(true);
+        setRecaptchaFailedToLoad(false); // Clear failed load state on success
         console.log('✅ reCAPTCHA rendered successfully with ID:', newWidgetId);
       } catch (error) {
         console.error('❌ Error rendering reCAPTCHA:', error);
@@ -296,6 +307,9 @@ const Booking = () => {
     // Cleanup function
     return () => {
       try {
+        // Clear the timeout
+        clearTimeout(loadTimeout);
+        
         // Reset the widget if it exists
         if (widgetId !== null && window.grecaptcha && window.grecaptcha.reset) {
           window.grecaptcha.reset(widgetId);
@@ -324,6 +338,7 @@ const Booking = () => {
         setRecaptchaRendered(false);
         setRecaptchaToken(null);
         setWidgetId(null);
+        setRecaptchaFailedToLoad(false);
       } catch (e) {
         console.log('Cleanup error (non-critical):', e);
       }
@@ -379,6 +394,7 @@ const Booking = () => {
               
               setWidgetId(newWidgetId);
               setRecaptchaRendered(true);
+              setRecaptchaFailedToLoad(false); // Clear failed load state on success
               console.log('✅ Manual reCAPTCHA render successful with ID:', newWidgetId);
             } catch (error) {
               console.error('❌ Manual render error:', error);
@@ -728,7 +744,7 @@ const Booking = () => {
       <div className="container-custom py-12">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Tour Packages */}
-          <div className="space-y-6">
+          <div className="space-y-6 p-4">
             <h2 className="text-3xl font-bold text-gray-900 mb-6">Tour Options</h2>
             
                           {packages.map((pkg, index) => {
@@ -912,8 +928,8 @@ const Booking = () => {
                   />
                 </div>
 
-                                                                    {/* Date, Time, Guests, and Purpose - 2x2 Grid */}
-                 <div className="grid grid-cols-2 gap-4">
+                                                                    {/* Date, Time, Guests, and Purpose - Responsive Grid */}
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                    {/* Number of Guests */}
                    <div>
                      <label htmlFor="guests" className="block text-sm font-medium text-gray-700 mb-2">
@@ -1189,6 +1205,28 @@ const Booking = () => {
 
                 {/* reCAPTCHA */}
                 <div className="space-y-3 mb-6">
+                  {/* reCAPTCHA Failed to Load Message */}
+                  {recaptchaFailedToLoad && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+                      <div className="flex items-center justify-center space-x-2 text-red-700 mb-2">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                        </svg>
+                        <span className="font-medium">reCAPTCHA Failed to Load</span>
+                      </div>
+                      <p className="text-red-600 text-sm">
+                        Please refresh the page to reload the verification widget.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => window.location.reload()}
+                        className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+                      >
+                        Refresh Page
+                      </button>
+                    </div>
+                  )}
+                  
                   <div className="flex justify-center">
                     <div 
                       ref={recaptchaRef}

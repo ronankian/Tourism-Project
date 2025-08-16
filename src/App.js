@@ -21,6 +21,7 @@ import About from './pages/About';
 import Contact from './pages/Contact';
 import VerifyBooking from './pages/VerifyBooking';
 import PrivacyPolicy from './pages/PrivacyPolicy';
+import ScrollToTop from './components/ScrollToTop';
 
 function App() {
   // Initialize automatic maintenance scheduler
@@ -143,6 +144,7 @@ function App() {
             </div>
           } />
         </Routes>
+        <ScrollToTop />
         <Toaster 
           position="top-right"
           toastOptions={{

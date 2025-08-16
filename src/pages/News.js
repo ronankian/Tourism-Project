@@ -254,6 +254,42 @@ const News = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Responsive Facebook Embed Styles */}
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          .fb-post {
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+          .fb-post iframe {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: auto !important;
+          }
+          @media (max-width: 768px) {
+            .fb-post {
+              width: 100% !important;
+              max-width: 100% !important;
+            }
+            .fb-post iframe {
+              width: 100% !important;
+              max-width: 100% !important;
+              min-width: auto !important;
+            }
+          }
+          @media (max-width: 480px) {
+            .fb-post {
+              width: 100% !important;
+              max-width: 100% !important;
+            }
+            .fb-post iframe {
+              width: 100% !important;
+              max-width: 100% !important;
+              min-width: auto !important;
+            }
+          }
+        `
+      }} />
       {/* Enhanced News Header */}
       <section className="relative py-20 overflow-hidden">
         <div 
@@ -484,16 +520,16 @@ const News = () => {
                         )}
                         
                         <div className="flex justify-center">
-                          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+                          <div className="bg-white rounded-lg shadow-sm overflow-hidden w-full max-w-2xl mx-auto">
                             <div 
-                              className="fb-post" 
+                              className="fb-post w-full" 
                               data-href={post.embedUrl.includes('plugins/post.php?href=') 
                                 ? decodeURIComponent(post.embedUrl.split('plugins/post.php?href=')[1].split('&')[0])
                                 : post.embedUrl
                               }
                               data-width="500"
                               data-show-text="true"
-                              style={{ margin: '0 auto' }}
+                              style={{ margin: '0 auto', width: '100%', maxWidth: '100%' }}
                               onError={(e) => {
                                 console.log('Facebook post failed to load, showing fallback');
                                 e.target.style.display = 'none';
