@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { advisoryService } from '../services/advisoryService';
 import WebFont from 'webfontloader';
 import TextTicker from '../components/TextTicker';
+import CountUp from 'react-countup';
 
 const Home = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -11,6 +12,8 @@ const Home = () => {
   const [advisories, setAdvisories] = useState([]);
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [currentFeatureIndex, setCurrentFeatureIndex] = useState(0);
+  const [slideDirection, setSlideDirection] = useState('right'); // Track slide direction
+  const [isMobileInteraction, setIsMobileInteraction] = useState(false); // Track if interaction is from mobile
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -100,10 +103,14 @@ const Home = () => {
   };
 
   const nextFeature = () => {
+    setIsMobileInteraction(false);
+    setSlideDirection('left');
     setCurrentFeatureIndex((prev) => (prev + 1) % features.length);
   };
 
   const prevFeature = () => {
+    setIsMobileInteraction(false);
+    setSlideDirection('right');
     setCurrentFeatureIndex((prev) => (prev - 1 + features.length) % features.length);
   };
 
@@ -125,43 +132,47 @@ const Home = () => {
     const isRightSwipe = distance < -50;
 
     if (isLeftSwipe) {
-      nextFeature();
+      setIsMobileInteraction(true);
+      setSlideDirection('left');
+      setCurrentFeatureIndex((prev) => (prev + 1) % features.length);
     }
     if (isRightSwipe) {
-      prevFeature();
+      setIsMobileInteraction(true);
+      setSlideDirection('right');
+      setCurrentFeatureIndex((prev) => (prev - 1 + features.length) % features.length);
     }
   };
 
   const quickFacts = [
-    { number: '17th', text: 'Century Originally Built', icon: '🏛️' },
-    { number: '1,125', text: 'Hectares Original Estate', icon: '🌾' },
-    { number: '1897', text: 'Revolutionary Assembly', icon: '⚔️' },
-    { number: '4', text: 'Hectares Casa Grounds', icon: '🏰' }
+    { number: 17, text: 'Century Originally Built', icon: '🏛️', suffix: 'th' },
+    { number: 1125, text: 'Hectares Original Estate', icon: '🌾', separator: ',' },
+    { number: 1897, text: 'Revolutionary Assembly', icon: '⚔️' },
+    { number: 4, text: 'Hectares Casa Grounds', icon: '🏰' }
   ];
 
   const features = [
     {
       title: 'Historical Significance',
       description: 'Where Philippine revolutionaries elected their leaders',
-      image: '/images/hero/convention.jpg',
+      image: '/images/hero/convention.webp',
       color: 'from-amber-500 to-orange-500'
     },
     {
       title: 'Heritage Remnants',
       description: 'Discover adobe foundations, aged walls, and original stone steps that echo the past.',
-      image: '/images/hero/last.jpg',
+      image: '/images/hero/last.webp',
       color: 'from-green-500 to-emerald-500'
     },
     {
       title: 'Historical Atmosphere',
       description: 'Reflect upon the place where the Tejeros Convention took place, marked, commemorated, and despite modern additions, still charged with historical energy.',
-      image: '/images/hero/sculpture.jpg',
+      image: '/images/hero/sculpture.webp',
       color: 'from-red-500 to-pink-500'
     },
     {
       title: 'Photogenic Backdrop',
       description: 'Frame the interplay of old and new, from archival ruins to modern architecture, in a visually compelling setting.',
-      image: '/images/hero/heritage-memorial.png',
+      image: '/images/hero/heritage-memorial.webp',
       color: 'from-purple-500 to-pink-500'
     }
   ];
@@ -322,7 +333,7 @@ const Home = () => {
                     to="/booking" 
                     className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-4 px-8 rounded-full text-lg transition-all duration-300 shadow-lg hover:shadow-xl inline-block"
                   >
-                    Book Your Visit Today
+                    Book Your Visit
                   </Link>
                 </motion.div>
                 <motion.div
@@ -389,7 +400,16 @@ const Home = () => {
                     {fact.icon}
                   </div>
                   <div className="text-3xl md:text-4xl font-bold text-amber-600 mb-2">
-                    {fact.number}
+                    <CountUp
+                      end={fact.number}
+                      duration={2.5}
+                      delay={index * 0.2}
+                      separator={fact.separator || ''}
+                      suffix={fact.suffix || ''}
+                      enableScrollSpy={true}
+                      scrollSpyDelay={200}
+                      scrollSpyOnce={true}
+                    />
                   </div>
                   <p className="text-gray-700 font-medium">{fact.text}</p>
                 </div>
@@ -525,10 +545,23 @@ const Home = () => {
              <div className="overflow-hidden">
                <motion.div
                  key={currentFeatureIndex}
-                 initial={{ opacity: 0, x: 100 }}
+                 initial={{ 
+                   opacity: 0, 
+                   x: isMobileInteraction 
+                     ? (slideDirection === 'right' ? -100 : 100)  // Mobile: swipe right = card comes from left, swipe left = card comes from right
+                     : (slideDirection === 'right' ? 100 : -100)  // PC: next = card comes from left, prev = card comes from right
+                 }}
                  animate={{ opacity: 1, x: 0 }}
-                 exit={{ opacity: 0, x: -100 }}
-                 transition={{ duration: 0.5 }}
+                 exit={{ 
+                   opacity: 0, 
+                   x: isMobileInteraction 
+                     ? (slideDirection === 'right' ? 100 : -100)  // Mobile: swipe right = card exits to right, swipe left = card exits to left
+                     : (slideDirection === 'right' ? -100 : 100)  // PC: next = card exits to right, prev = card exits to left
+                 }}
+                 transition={{ 
+                   duration: 0.6,
+                   ease: "easeInOut"
+                 }}
                  className="max-w-4xl mx-auto"
                  onTouchStart={onTouchStart}
                  onTouchMove={onTouchMove}
@@ -586,7 +619,11 @@ const Home = () => {
               {features.map((_, index) => (
                 <button
                   key={index}
-                  onClick={() => setCurrentFeatureIndex(index)}
+                  onClick={() => {
+                    setIsMobileInteraction(false);
+                    setSlideDirection(index > currentFeatureIndex ? 'left' : 'right');
+                    setCurrentFeatureIndex(index);
+                  }}
                   className={`w-3 h-3 rounded-full transition-all duration-300 ${
                     index === currentFeatureIndex ? 'bg-green-600 scale-125' : 'bg-gray-300 hover:bg-gray-400'
                   }`}

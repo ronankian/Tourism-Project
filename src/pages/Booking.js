@@ -146,6 +146,7 @@ const Booking = () => {
   const [showProtocolModal, setShowProtocolModal] = useState(false);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const timeoutRef = useRef(null);
 
   // Define onload callback function (must be global)
   useEffect(() => {
@@ -164,8 +165,9 @@ const Booking = () => {
     }
 
     // Set a timeout to detect if reCAPTCHA fails to load
-    const loadTimeout = setTimeout(() => {
-      if (!recaptchaRendered) {
+    timeoutRef.current = setTimeout(() => {
+      // Only show failure if reCAPTCHA hasn't been rendered and timeout hasn't been cleared
+      if (!recaptchaRendered && timeoutRef.current) {
         console.log('⏰ reCAPTCHA failed to load within timeout');
         setRecaptchaFailedToLoad(true);
       }
@@ -265,6 +267,14 @@ const Booking = () => {
         setWidgetId(newWidgetId);
         setRecaptchaRendered(true);
         setRecaptchaFailedToLoad(false); // Clear failed load state on success
+        
+        // Clear the timeout since reCAPTCHA loaded successfully
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+          console.log('⏰ Cleared reCAPTCHA load timeout - success');
+        }
+        
         console.log('✅ reCAPTCHA rendered successfully with ID:', newWidgetId);
       } catch (error) {
         console.error('❌ Error rendering reCAPTCHA:', error);
@@ -308,7 +318,10 @@ const Booking = () => {
     return () => {
       try {
         // Clear the timeout
-        clearTimeout(loadTimeout);
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
         
         // Reset the widget if it exists
         if (widgetId !== null && window.grecaptcha && window.grecaptcha.reset) {
@@ -395,6 +408,14 @@ const Booking = () => {
               setWidgetId(newWidgetId);
               setRecaptchaRendered(true);
               setRecaptchaFailedToLoad(false); // Clear failed load state on success
+              
+              // Clear the timeout since reCAPTCHA loaded successfully
+              if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+                timeoutRef.current = null;
+                console.log('⏰ Cleared reCAPTCHA load timeout - manual render success');
+              }
+              
               console.log('✅ Manual reCAPTCHA render successful with ID:', newWidgetId);
             } catch (error) {
               console.error('❌ Manual render error:', error);

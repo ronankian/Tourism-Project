@@ -260,11 +260,39 @@ const News = () => {
           .fb-post {
             width: 100% !important;
             max-width: 100% !important;
+            margin: 0 auto !important;
           }
           .fb-post iframe {
             width: 100% !important;
             max-width: 100% !important;
             min-width: auto !important;
+            margin: 0 auto !important;
+          }
+          @media (min-width: 769px) {
+            .fb-post {
+              width: 500px !important;
+              max-width: 500px !important;
+              margin: 0 auto !important;
+            }
+            .fb-post iframe {
+              width: 500px !important;
+              max-width: 500px !important;
+              min-width: 500px !important;
+              margin: 0 auto !important;
+            }
+          }
+          @media (min-width: 501px) and (max-width: 768px) {
+            .fb-post {
+              width: 500px !important;
+              max-width: 500px !important;
+              margin: 0 auto !important;
+            }
+            .fb-post iframe {
+              width: 500px !important;
+              max-width: 500px !important;
+              min-width: 500px !important;
+              margin: 0 auto !important;
+            }
           }
           @media (max-width: 768px) {
             .fb-post {
@@ -286,6 +314,20 @@ const News = () => {
               width: 100% !important;
               max-width: 100% !important;
               min-width: auto !important;
+            }
+          }
+          /* Force centering for desktop and tablet */
+          @media (min-width: 501px) {
+            .fb-post-container {
+              display: flex !important;
+              justify-content: center !important;
+              align-items: center !important;
+              width: 100% !important;
+            }
+            .fb-post-wrapper {
+              width: 500px !important;
+              max-width: 500px !important;
+              margin: 0 auto !important;
             }
           }
         `
@@ -481,7 +523,7 @@ const News = () => {
       )}
 
       {/* News Feed Section */}
-      <section className="py-12 bg-gray-50">
+      <section className="py-12 bg-gray-50 news-feed-container">
         <div className="container-custom">
 
           {/* Loading State */}
@@ -494,7 +536,7 @@ const News = () => {
 
           {/* Facebook Posts */}
           {!loading && (
-            <div className="max-w-6xl mx-auto">
+            <div className="w-full max-w-6xl mx-auto">
               {displayPosts.length > 0 ? (
                 <>
                   <div className="space-y-8"> 
@@ -519,17 +561,16 @@ const News = () => {
                           </div>
                         )}
                         
-                        <div className="flex justify-center">
-                          <div className="bg-white rounded-lg shadow-sm overflow-hidden w-full max-w-2xl mx-auto">
+                        <div className="flex justify-center fb-post-container">
+                          <div className="bg-white rounded-lg shadow-sm overflow-hidden w-full fb-post-wrapper">
                             <div 
-                              className="fb-post w-full" 
+                              className="fb-post" 
                               data-href={post.embedUrl.includes('plugins/post.php?href=') 
                                 ? decodeURIComponent(post.embedUrl.split('plugins/post.php?href=')[1].split('&')[0])
                                 : post.embedUrl
                               }
                               data-width="500"
                               data-show-text="true"
-                              style={{ margin: '0 auto', width: '100%', maxWidth: '100%' }}
                               onError={(e) => {
                                 console.log('Facebook post failed to load, showing fallback');
                                 e.target.style.display = 'none';
@@ -538,7 +579,7 @@ const News = () => {
                               }}
                             />
                             <div 
-                              className="hidden bg-white p-6 rounded-lg shadow-sm max-w-lg w-full"
+                              className="hidden bg-white p-6 rounded-lg shadow-sm w-full"
                               style={{ display: 'none' }}
                             >
                               <div className="flex items-center mb-4">
