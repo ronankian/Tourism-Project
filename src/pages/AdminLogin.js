@@ -34,7 +34,6 @@ const AdminLogin = () => {
     
     // Check if reCAPTCHA script is already loaded
     if (window.grecaptcha) {
-      console.log('reCAPTCHA script already loaded');
       // If script is loaded but widget not rendered, render it
       if (!recaptchaRendered && recaptchaRef.current) {
         window.onloadCallback();
@@ -49,50 +48,44 @@ const AdminLogin = () => {
           // Check if element already has reCAPTCHA widget
           const existingWidget = recaptchaRef.current.querySelector('.g-recaptcha');
           if (existingWidget) {
-            console.log('reCAPTCHA widget already exists in element');
             return;
           }
           
           window.grecaptcha.render(recaptchaRef.current, {
             'sitekey': adminSiteKey,
             'theme': 'light',
-            'callback': (token) => {
-              console.log('reCAPTCHA success:', token);
-              setRecaptchaToken(token);
-            },
+                    'callback': (token) => {
+          setRecaptchaToken(token);
+        },
             'expired-callback': () => {
-              console.log('reCAPTCHA expired');
               setRecaptchaToken(null);
               toast.warning('reCAPTCHA expired. Please verify again.');
             },
             'error-callback': () => {
-              console.log('reCAPTCHA error');
               setRecaptchaToken(null);
               toast.error('reCAPTCHA encountered an error. Please refresh the page and try again.');
             }
           });
           setRecaptchaRendered(true);
-          console.log('✅ reCAPTCHA rendered successfully');
         } catch (error) {
           console.error('❌ Error rendering reCAPTCHA:', error);
           // If it's an "already rendered" error, mark as rendered anyway
           if (error.message.includes('already been rendered')) {
             setRecaptchaRendered(true);
-            console.log('✅ reCAPTCHA already rendered, continuing...');
           }
         }
       }
     };
 
-    console.log('✅ Loading Admin reCAPTCHA script with site key:', adminSiteKey);
+
     const script = document.createElement('script');
     script.src = `https://www.google.com/recaptcha/api.js?onload=onloadCallback&render=explicit`;
     script.async = true;
     script.defer = true;
     
-    script.onload = () => {
-      console.log('📦 reCAPTCHA script loaded successfully');
-    };
+          script.onload = () => {
+        // Script loaded successfully
+      };
     
     script.onerror = (error) => {
       console.error('❌ Failed to load reCAPTCHA script:', error);
@@ -103,7 +96,7 @@ const AdminLogin = () => {
     if (!existingScript) {
       document.head.appendChild(script);
     } else {
-      console.log('reCAPTCHA script already loaded');
+      // Script already loaded
     }
   }, []);
 
@@ -117,10 +110,10 @@ const AdminLogin = () => {
         // Simple reset without widget ID tracking
         window.grecaptcha.reset();
         setRecaptchaToken(null);
-        console.log('🔄 reCAPTCHA reset after failed login');
-      } catch (e) {
-        console.log('Could not reset reCAPTCHA widget:', e);
-      }
+              // reCAPTCHA reset after failed login
+    } catch (e) {
+      // Could not reset reCAPTCHA widget
+    }
     }
   };
 

@@ -23,7 +23,6 @@ const FirebaseActionRedirect = () => {
   const oobCode = searchParams.get('oobCode');
 
   useEffect(() => {
-    console.log('FirebaseActionRedirect mounted with mode:', mode, 'oobCode:', oobCode);
     
     // Check EmailJS environment variables
     const missingVars = [];
@@ -126,12 +125,12 @@ const FirebaseActionRedirect = () => {
                     booking_filename: 'Permission_Letter_Template.docx'
                   };
 
-                  await emailjs.send(
-                    process.env.REACT_APP_EMAILJS_SERVICE_ID,
-                    'template_8yzllnv', // Booking confirmation template
-                    templateParams,
-                    { publicKey: process.env.REACT_APP_EMAILJS_PUBLIC_KEY }
-                  );
+                                      await emailjs.send(
+                      process.env.REACT_APP_EMAILJS_SERVICE_ID,
+                      'template_8yzllnv',
+                      templateParams,
+                      { publicKey: process.env.REACT_APP_EMAILJS_PUBLIC_KEY }
+                    );
                 } catch (e) {
                   console.error('Email send failed:', e);
                   
@@ -154,7 +153,7 @@ const FirebaseActionRedirect = () => {
                     
                     await emailjs.send(
                       process.env.REACT_APP_EMAILJS_SERVICE_ID,
-                      'template_8yzllnv', // Booking confirmation template
+                      process.env.REACT_APP_EMAILJS_USER_BOOKING_TEMPLATE_ID || 'template_8yzllnv',
                       {
                         to_email: payload.email,
                         to_name: payload.name || 'Guest',
@@ -267,7 +266,7 @@ const FirebaseActionRedirect = () => {
       if (mode === 'resetPassword') {
         // Don't verify the code here - let NewPassword page handle it
         // to avoid consuming the one-time-use code
-        console.log('Password reset code received, redirecting to new password page');
+
         setActionSuccess(true);
         setReady(true);
         return;
@@ -276,26 +275,20 @@ const FirebaseActionRedirect = () => {
       // Handle email verification with proper error handling
       try {
         if (mode === 'verifyEmail') {
-          console.log('Starting email verification with oobCode:', oobCode);
-          console.log('Firebase auth object:', auth);
-          console.log('Current user before verification:', auth.currentUser);
+          
           
           // For email verification, we should attempt verification even if not logged in
-          console.log('Attempting email verification without login requirement');
+          
           
           await applyActionCode(auth, oobCode);
-           console.log('Email verification successful');
+           
           
           // Check if user is now verified (only if user is logged in)
           if (auth.currentUser) {
             await auth.currentUser.reload();
-            console.log('User email verified status after applyActionCode:', auth.currentUser.emailVerified);
-          } else {
-            console.log('User not logged in during verification - verification still successful');
           }
           
           // Show success for valid verification
-          console.log('Setting actionSuccess to true for successful verification');
           setActionSuccess(true);
           setReady(true);
         }
@@ -322,7 +315,6 @@ const FirebaseActionRedirect = () => {
           toast.error(errorMessage);
         } else {
           // For other errors, show success to avoid false negatives
-          console.log('Non-critical error, showing success anyway');
           setActionSuccess(true);
         }
         
@@ -405,7 +397,7 @@ const FirebaseActionRedirect = () => {
   };
 
   // Always show the beautiful interface
-  console.log('Rendering FirebaseActionRedirect with actionType:', actionType, 'ready:', ready, 'actionSuccess:', actionSuccess);
+
   
 
 

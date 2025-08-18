@@ -363,9 +363,7 @@ const News = () => {
               
               <button
                 onClick={async () => {
-                  console.log('Testing Firestore connection...');
                   const result = await testFirestoreConnection();
-                  console.log('Test result:', result);
                   if (result.success) {
                     toast.success(`Connection successful! Found ${result.count} posts.`);
                   } else {
@@ -572,7 +570,6 @@ const News = () => {
                               data-width="500"
                               data-show-text="true"
                               onError={(e) => {
-                                console.log('Facebook post failed to load, showing fallback');
                                 e.target.style.display = 'none';
                                 const fallback = e.target.nextSibling;
                                 if (fallback) fallback.style.display = 'block';

@@ -7,8 +7,6 @@ export const verifyRecaptchaToken = async (token) => {
   try {
     // For development: Simulate verification since CORS blocks direct API calls
     // In production, this should be handled by your backend server
-    console.log('🔍 Development Mode: Simulating reCAPTCHA verification');
-    console.log('📝 Token received:', token ? 'Valid token received' : 'No token');
     
     // Simulate a successful verification for development
     // In production, replace this with actual backend API call
@@ -23,9 +21,6 @@ export const verifyRecaptchaToken = async (token) => {
         hostname: window.location.hostname
       }
     };
-
-    console.log('✅ Development: reCAPTCHA verification simulated successfully');
-    console.log('📋 Production Note: Replace this with actual backend verification');
     
     return simulatedResult;
 
@@ -47,7 +42,6 @@ export const verifyRecaptchaToken = async (token) => {
     });
 
     const result = await response.json();
-    console.log('reCAPTCHA verification result:', result);
 
     return {
       success: result.success,

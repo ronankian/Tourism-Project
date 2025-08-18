@@ -166,16 +166,10 @@ const Booking = () => {
 
   // Define onload callback function (must be global)
   useEffect(() => {
-    // Debug: Check if environment variables are loaded
-    console.log('🔍 Booking reCAPTCHA Key:', process.env.REACT_APP_RECAPTCHA_BOOKING_SITE_KEY);
-    console.log('🔍 Legacy reCAPTCHA Key:', process.env.REACT_APP_RECAPTCHA_SITE_KEY);
-    console.log('🔍 All REACT_APP env vars:', Object.keys(process.env).filter(key => key.startsWith('REACT_APP_RECAPTCHA')));
-    
     // Check if booking site key is available
     const bookingSiteKey = process.env.REACT_APP_RECAPTCHA_BOOKING_SITE_KEY || process.env.REACT_APP_RECAPTCHA_SITE_KEY;
-    console.log('🎯 Using Booking site key:', bookingSiteKey);
     if (!bookingSiteKey) {
-      console.error('❌ Booking reCAPTCHA Site Key is missing! Please check your .env file.');
+      console.error('Booking reCAPTCHA Site Key is missing! Please check your .env file.');
       setRecaptchaFailedToLoad(true);
       return;
     }
@@ -184,14 +178,12 @@ const Booking = () => {
     timeoutRef.current = setTimeout(() => {
       // Only show failure if reCAPTCHA hasn't been rendered and timeout hasn't been cleared
       if (!recaptchaRendered && timeoutRef.current) {
-        console.log('⏰ reCAPTCHA failed to load within timeout');
         setRecaptchaFailedToLoad(true);
       }
     }, 10000); // 10 second timeout
     
     // Check if reCAPTCHA script is already loaded
     if (window.grecaptcha) {
-      console.log('reCAPTCHA script already loaded');
       // If script is loaded but widget not rendered, render it
       if (!recaptchaRendered && recaptchaRef.current) {
         window.onloadCallback();
@@ -201,41 +193,26 @@ const Booking = () => {
 
     // Define the render function
     const renderRecaptcha = () => {
-      console.log('🔄 renderRecaptcha called');
-      console.log('📊 Current state:', {
-        hasGrecaptcha: !!window.grecaptcha,
-        hasRender: !!(window.grecaptcha && window.grecaptcha.render),
-        hasRef: !!recaptchaRef.current,
-        alreadyRendered: recaptchaRendered,
-        siteKey: bookingSiteKey
-      });
-      
       if (!window.grecaptcha || !window.grecaptcha.render) {
-        console.log('❌ grecaptcha not available yet');
         return;
       }
       
       if (!recaptchaRef.current) {
-        console.log('❌ recaptchaRef not available yet, retrying in 100ms...');
         setTimeout(renderRecaptcha, 100);
         return;
       }
       
       if (recaptchaRendered) {
-        console.log('✅ reCAPTCHA already rendered, skipping');
         return;
       }
 
       try {
-        console.log('🚀 Starting reCAPTCHA render process');
-        
         // Clear any existing widget first
         if (widgetId !== null) {
           try {
             window.grecaptcha.reset(widgetId);
-            console.log('🔄 Reset existing widget ID:', widgetId);
           } catch (e) {
-            console.log('Could not reset existing widget, continuing...');
+            // Continue silently if reset fails
           }
         }
 
@@ -252,34 +229,27 @@ const Booking = () => {
             }
           } catch (e) {
             // Fallback to innerHTML if safe removal fails
-            console.log('Using innerHTML fallback for container clear');
             recaptchaRef.current.innerHTML = '';
           }
-          console.log('🧹 Cleared reCAPTCHA container');
         }
 
         // Render new widget
-        console.log('🎯 Rendering with site key:', bookingSiteKey);
         const newWidgetId = window.grecaptcha.render(recaptchaRef.current, {
           'sitekey': bookingSiteKey,
           'theme': 'light',
           'callback': (token) => {
-            console.log('✅ reCAPTCHA success:', token);
             setRecaptchaToken(token);
           },
           'expired-callback': () => {
-            console.log('⏰ reCAPTCHA expired');
             setRecaptchaToken(null);
             toast.warning('reCAPTCHA expired. Please verify again.');
           },
           'error-callback': () => {
-            console.log('❌ reCAPTCHA error callback triggered');
             setRecaptchaToken(null);
             toast.error('reCAPTCHA encountered an error. Please refresh the page and try again.');
           }
         });
         
-        console.log('🆔 New widget ID:', newWidgetId);
         setWidgetId(newWidgetId);
         setRecaptchaRendered(true);
         setRecaptchaFailedToLoad(false); // Clear failed load state on success
@@ -288,17 +258,9 @@ const Booking = () => {
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current);
           timeoutRef.current = null;
-          console.log('⏰ Cleared reCAPTCHA load timeout - success');
         }
-        
-        console.log('✅ reCAPTCHA rendered successfully with ID:', newWidgetId);
       } catch (error) {
-        console.error('❌ Error rendering reCAPTCHA:', error);
-        console.error('Error details:', {
-          name: error.name,
-          message: error.message,
-          stack: error.stack
-        });
+        console.error('Error rendering reCAPTCHA:', error);
       }
     };
 
@@ -308,8 +270,6 @@ const Booking = () => {
     // Only load script if site key is available
     let script = null;
     if (bookingSiteKey) {
-      console.log('✅ Loading Booking reCAPTCHA script with site key:', bookingSiteKey);
-      
       // Check if script already exists
       const existingScript = document.querySelector('script[src*="recaptcha/api.js"]');
       if (!existingScript) {
@@ -320,14 +280,13 @@ const Booking = () => {
         script.defer = true;
         document.head.appendChild(script);
       } else {
-        console.log('reCAPTCHA script already loaded');
         // If script exists but grecaptcha is ready, call render
         if (window.grecaptcha && window.grecaptcha.render) {
           setTimeout(renderRecaptcha, 100);
         }
       }
     } else {
-      console.error('❌ Cannot load reCAPTCHA script - site key is missing!');
+      console.error('Cannot load reCAPTCHA script - site key is missing!');
     }
 
     // Cleanup function
@@ -342,7 +301,6 @@ const Booking = () => {
         // Reset the widget if it exists
         if (widgetId !== null && window.grecaptcha && window.grecaptcha.reset) {
           window.grecaptcha.reset(widgetId);
-          console.log('🧹 reCAPTCHA widget reset on cleanup');
         }
         
         // Clear the container safely
@@ -369,7 +327,7 @@ const Booking = () => {
         setWidgetId(null);
         setRecaptchaFailedToLoad(false);
       } catch (e) {
-        console.log('Cleanup error (non-critical):', e);
+        // Silent cleanup error handling
       }
     };
   }, []);
@@ -379,12 +337,10 @@ const Booking = () => {
   // Additional useEffect to handle reCAPTCHA rendering when ref becomes available
   useEffect(() => {
     if (recaptchaRef.current && window.grecaptcha && window.grecaptcha.render && !recaptchaRendered) {
-      console.log('🔄 Ref is now available, attempting to render reCAPTCHA');
       setTimeout(() => {
         if (recaptchaRef.current && !recaptchaRendered) {
           const renderRecaptcha = () => {
             try {
-              console.log('🚀 Manual render attempt');
               const bookingSiteKey = process.env.REACT_APP_RECAPTCHA_BOOKING_SITE_KEY || process.env.REACT_APP_RECAPTCHA_SITE_KEY;
               
               if (recaptchaRef.current) {
@@ -406,16 +362,13 @@ const Booking = () => {
                 'sitekey': bookingSiteKey,
                 'theme': 'light',
                 'callback': (token) => {
-                  console.log('✅ reCAPTCHA success:', token);
                   setRecaptchaToken(token);
                 },
                 'expired-callback': () => {
-                  console.log('⏰ reCAPTCHA expired');
                   setRecaptchaToken(null);
                   toast.warning('reCAPTCHA expired. Please verify again.');
                 },
                 'error-callback': () => {
-                  console.log('❌ reCAPTCHA error callback triggered');
                   setRecaptchaToken(null);
                   toast.error('reCAPTCHA encountered an error. Please refresh the page and try again.');
                 }
@@ -429,12 +382,9 @@ const Booking = () => {
               if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
                 timeoutRef.current = null;
-                console.log('⏰ Cleared reCAPTCHA load timeout - manual render success');
               }
-              
-              console.log('✅ Manual reCAPTCHA render successful with ID:', newWidgetId);
             } catch (error) {
-              console.error('❌ Manual render error:', error);
+              console.error('Manual render error:', error);
             }
           };
           renderRecaptcha();
@@ -461,9 +411,8 @@ const Booking = () => {
       try {
         window.grecaptcha.reset(widgetId);
         setRecaptchaToken(null);
-        console.log('🔄 reCAPTCHA reset after failed submission');
       } catch (e) {
-        console.log('Could not reset reCAPTCHA widget:', e);
+        // Silent error handling for reCAPTCHA reset
       }
     }
   };

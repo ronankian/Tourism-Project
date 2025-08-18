@@ -24,9 +24,19 @@ export const AuthProvider = ({ children }) => {
       try {
         const isInitialized = await passwordService.isPasswordSystemInitialized();
         if (!isInitialized) {
-          // Initialize with default password if not already done
-          await passwordService.initializeAdminPassword("Casahacienda1897");
-          console.log('Password system initialized with default password');
+          // Get default password from environment variable or use a secure fallback
+          const defaultPassword = process.env.REACT_APP_DEFAULT_ADMIN_PASSWORD;
+          
+          if (!defaultPassword) {
+            console.error('Default admin password not configured. Please set REACT_APP_DEFAULT_ADMIN_PASSWORD environment variable.');
+            // Don't initialize with a hardcoded password - let admin set it manually
+            setIsLoading(false);
+            return;
+          }
+          
+          // Initialize with environment variable password
+          await passwordService.initializeAdminPassword(defaultPassword);
+          // Remove the console.log that exposed the password initialization
         }
       } catch (error) {
         console.error('Error initializing password system:', error);

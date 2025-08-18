@@ -28,16 +28,10 @@ const Contact = () => {
 
   // Define onload callback function (must be global)
     useEffect(() => {
-    // Debug: Check if environment variables are loaded
-    console.log('🔍 Contact reCAPTCHA Key:', process.env.REACT_APP_RECAPTCHA_CONTACT_SITE_KEY);
-    console.log('🔍 Legacy reCAPTCHA Key:', process.env.REACT_APP_RECAPTCHA_SITE_KEY);
-    console.log('🔍 All REACT_APP env vars:', Object.keys(process.env).filter(key => key.startsWith('REACT_APP_RECAPTCHA')));
-    
     // Check if contact site key is available
     const contactSiteKey = process.env.REACT_APP_RECAPTCHA_CONTACT_SITE_KEY || process.env.REACT_APP_RECAPTCHA_SITE_KEY;
-    console.log('🎯 Using Contact site key:', contactSiteKey);
     if (!contactSiteKey) {
-      console.error('❌ Contact reCAPTCHA Site Key is missing! Please check your .env file.');
+      console.error('Contact reCAPTCHA Site Key is missing! Please check your .env file.');
       setRecaptchaFailedToLoad(true);
       return;
     }
@@ -45,14 +39,12 @@ const Contact = () => {
     // Set a timeout to detect if reCAPTCHA fails to load
     const loadTimeout = setTimeout(() => {
       if (!recaptchaRendered) {
-        console.log('⏰ reCAPTCHA failed to load within timeout');
         setRecaptchaFailedToLoad(true);
       }
     }, 10000); // 10 second timeout
     
     // Check if reCAPTCHA script is already loaded
     if (window.grecaptcha) {
-      console.log('reCAPTCHA script already loaded');
       // If script is loaded but widget not rendered, render it
       if (!recaptchaRendered && recaptchaRef.current) {
         window.onloadCallback();
@@ -67,7 +59,6 @@ const Contact = () => {
           // Check if element already has reCAPTCHA widget
           const existingWidget = recaptchaRef.current.querySelector('.g-recaptcha');
           if (existingWidget) {
-            console.log('reCAPTCHA widget already exists in element');
             return;
           }
           
@@ -75,29 +66,24 @@ const Contact = () => {
             'sitekey': contactSiteKey,
             'theme': 'light',
             'callback': (token) => {
-              console.log('reCAPTCHA success:', token);
               setRecaptchaToken(token);
             },
             'expired-callback': () => {
-              console.log('reCAPTCHA expired');
               setRecaptchaToken(null);
               toast.warning('reCAPTCHA expired. Please verify again.');
             },
             'error-callback': () => {
-              console.log('reCAPTCHA error');
               setRecaptchaToken(null);
               toast.error('reCAPTCHA encountered an error. Please refresh the page and try again.');
             }
           });
           setRecaptchaRendered(true);
           setRecaptchaFailedToLoad(false); // Clear failed load state on success
-          console.log('✅ reCAPTCHA rendered successfully');
         } catch (error) {
-          console.error('❌ Error rendering reCAPTCHA:', error);
+          console.error('Error rendering reCAPTCHA:', error);
           // If it's an "already rendered" error, mark as rendered anyway
           if (error.message.includes('already been rendered')) {
             setRecaptchaRendered(true);
-            console.log('✅ reCAPTCHA already rendered, continuing...');
           }
         }
       }
@@ -106,8 +92,6 @@ const Contact = () => {
     // Only load script if site key is available
     let script = null;
     if (contactSiteKey) {
-      console.log('✅ Loading Contact reCAPTCHA script with site key:', contactSiteKey);
-      
       // Create script element following official documentation
       script = document.createElement('script');
       script.src = 'https://www.google.com/recaptcha/api.js?onload=onloadCallback&render=explicit';
@@ -115,7 +99,7 @@ const Contact = () => {
       script.defer = true;
       document.head.appendChild(script);
     } else {
-      console.error('❌ Cannot load reCAPTCHA script - site key is missing!');
+      console.error('Cannot load reCAPTCHA script - site key is missing!');
     }
 
     // Cleanup function
@@ -342,7 +326,7 @@ const Contact = () => {
       // Send email via EmailJS
       await emailjs.send(
         process.env.REACT_APP_EMAILJS_ADMIN_SERVICE_ID,
-        'template_4w0tahi', // Contact notification template
+        'template_4w0tahi',
         emailData,
         { publicKey: process.env.REACT_APP_EMAILJS_ADMIN_PUBLIC_KEY }
       );

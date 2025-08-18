@@ -47,10 +47,9 @@ class PasswordService {
       if (docSnap.exists()) {
         return docSnap.data();
       } else {
-        // If no password exists, initialize with default password
-        const defaultPassword = "Casahacienda1897";
-        await this.initializeAdminPassword(defaultPassword);
-        return await this.getAdminPasswordHash();
+        // If no password exists, throw an error instead of auto-initializing
+        // This prevents the default password from being hardcoded in the source
+        throw new Error('Admin password not initialized. Please contact the administrator.');
       }
     } catch (error) {
       console.error('Error getting admin password:', error);

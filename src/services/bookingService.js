@@ -383,12 +383,11 @@ export const bookingService = {
         console.warn('EmailJS template ID seems invalid. Falling back to default template_8yzllnv. Got:', templateId);
       }
       await emailjs.default.send(
-        getEnvTrimmed('REACT_APP_EMAILJS_SERVICE_ID', process.env.REACT_APP_EMAILJS_SERVICE_ID),
-        templateId || 'template_8yzllnv',
+        process.env.REACT_APP_EMAILJS_SERVICE_ID,
+        'template_8yzllnv',
         templateParams,
-        { publicKey: getEnvTrimmed('REACT_APP_EMAILJS_PUBLIC_KEY', process.env.REACT_APP_EMAILJS_PUBLIC_KEY) }
+        { publicKey: process.env.REACT_APP_EMAILJS_PUBLIC_KEY }
       );
-      console.log('Booking verification email sent successfully!');
       
     } catch (error) {
       console.error('Error sending verification email:', error);
@@ -423,11 +422,10 @@ export const bookingService = {
       
       await emailjs.default.send(
         process.env.REACT_APP_EMAILJS_SERVICE_ID,
-        'template_8yzllnv', // Booking confirmation template
+        'template_8yzllnv',
         templateParams,
         { publicKey: process.env.REACT_APP_EMAILJS_PUBLIC_KEY }
       );
-      console.log('Email with permission letter template link sent successfully!');
       
     } catch (error) {
       console.error('Error sending confirmation email:', error);
@@ -490,22 +488,18 @@ export const bookingService = {
       // Import EmailJS dynamically
       const emailjs = await import('@emailjs/browser');
       
-      console.log('Sending status update email with data:', templateParams);
+
       
       await emailjs.default.send(
-        'service_wgx7m5q', // Use the service ID you provided
-        'template_9wog0ug', // Use the correct template ID
+        process.env.REACT_APP_EMAILJS_SERVICE_ID || 'service_wgx7m5q',
+        'template_9wog0ug',
         templateParams,
-        { publicKey: 's7q183h_v5_g0Gu3X' } // Use the public key you provided
+        { publicKey: process.env.REACT_APP_EMAILJS_PUBLIC_KEY || 's7q183h_v5_g0Gu3X' }
       );
-      console.log(`Status update email sent successfully to ${booking.email}`);
       
     } catch (error) {
       console.error('Error sending status update email:', error);
       console.error('Email data that failed:', templateParams);
-      console.error('Service ID: service_wgx7m5q');
-      console.error('Template ID: template_9wog0ug');
-      console.error('Public Key: s7q183h_v5_g0Gu3X');
     }
   },
 
@@ -541,11 +535,10 @@ export const bookingService = {
       
       await emailjs.default.send(
         process.env.REACT_APP_EMAILJS_ADMIN_SERVICE_ID,
-        'template_7al1inq', // Booking notification template
+        'template_7al1inq',
         emailData,
         { publicKey: process.env.REACT_APP_EMAILJS_ADMIN_PUBLIC_KEY }
       );
-      console.log('Admin booking notification sent successfully!');
       
     } catch (error) {
       console.error('Error sending admin booking notification:', error);
