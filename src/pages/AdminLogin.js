@@ -147,7 +147,7 @@ const AdminLogin = () => {
     }
 
     try {
-      const ok = adminLoginWithPasskey(passkey);
+      const ok = await adminLoginWithPasskey(passkey);
       if (ok) {
         navigate('/admin');
       } else {

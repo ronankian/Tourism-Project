@@ -1101,7 +1101,7 @@ const Booking = () => {
                 {bookingData.purpose === 'Other' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Please specify
+                      Please specify purpose of visit
                     </label>
                     <input
                       type="text"
@@ -1322,71 +1322,75 @@ const Booking = () => {
                 ✕
               </button>
             </div>
-            <div className="space-y-4 text-sm text-gray-700 max-h-[70vh] overflow-y-auto">
-              <ol className="list-decimal pl-5 space-y-2 mt-4">
-                <li>
-                  Casa Hacienda is open on Mondays to Fridays at 8 AM - 5 PM. But, can be opened on
-                  Saturdays/Sundays/Holidays as per request.
-                </li>
-                <li>
-                  Proper Attire e.g School/Office Uniform, Casual should be observed.
-                  <br />
-                  No wearing of shorts, sleeveless, sandals, sportswear, slippers are allowed for the visit.
-                </li>
-                <li>Observe cleanliness and orderliness at all times; No Littering; No Loitering, too.</li>
-                <li>Observe proper decorum during the visit.</li>
-                <li>There are toilets available; Male/Female; Please use it properly.</li>
-                <li>You're not allowed to enter the "TUNNEL" nor touch any items on display.</li>
-                <li>
-                  Since, CASA HACIENDA is under the on-going renovations, going to the 2nd floor, 3rd floor, Roof top
-                  and basement is strictly prohibited.
-                </li>
-                <li>You can use the vicinity in front of it for Parking purposes.</li>
-                <li>
-                  Likewise, the Back part of the place where Canas River is located is ALSO prohibited for security
-                  reason.
-                </li>
-                <li>
-                  The Information Desk serves as the Inquiries site and Brochure Display Area. Also, the Municipal
-                  Publication "Ang Dagat at Panulat-Mayor's Ricaf Corner is there.
-                </li>
-                <li>
-                  The Municipal Tourism Office is located at the Ground Floor where Mr. Ruben R. Quinto, Municipal
-                  Tourism Officer performs his tasks and other matters. This is where you will be entertained for
-                  reservation and other queries.
-                </li>
-                <li>
-                  For Reservations: Please submit the following
-                  <ul className="list-disc pl-5 mt-1 space-y-1">
-                    <li>Letter of Permission(encoded) (two copies) address to Mr. Ruben R. Quinto</li>
-                    <li>Authorization from the School Officials et.al.</li>
-                    <li>Inform/Set the schedule intended to visit</li>
-                  </ul>
-                  <p className="mt-2">
-                    II. Or Through: email <span className="underline">tourismoffice886@gmail.com</span>, text message/or
-                    call at (046) 886 9707
-                  </p>
-                </li>
-                <li>No excuses on nearby towns/proximity regarding the protocol on Reservation.</li>
-                <li>
-                  Other visitors such as Foreigners, Walk-in coming from Manila or near far places are allowed on the
-                  unexpected schedule of visitations for humanitarian reasons
-                </li>
-                <li>
-                  CASA HACIENDA DE TEJEROS is no longer use as venue for parties, practices and unpermitted assemblies.
-                  ONLY: Municipal Meetings, Organizations, Schools and others related to History, Heritage, respective
-                  function per se. STILL, submit a Letter of Permission for its use/Follow the Protocol.
-                </li>
-                <li>
-                  The façade of the Casa Hacienda de Tejeros (within the vicinity) has benches; also serves as an open
-                  park, open to public consumption, but still, please follow the protocol: seek permission inside.
-                  Municipal Tourism Office. NOT AVAILABLE FOR PARKING (privately), PLEASE...
-                </li>
-                <li>
-                  CASA HACIENDA DE TEJEROS is closely supervised under the LGU-Rosario, Office of the Mayor and
-                  Municipal Tourism Office.
-                </li>
-              </ol>
+                         <div className="text-sm text-gray-700 max-h-[70vh] overflow-y-auto">
+               <ol className="mt-4 space-y-3" style={{ 
+                 listStyleType: 'decimal',
+                 paddingLeft: '1.5rem',
+                 counterReset: 'list-counter'
+               }}>
+                 <li>
+                   Casa Hacienda is open on Mondays to Fridays at 8 AM - 5 PM. But, can be opened on
+                   Saturdays/Sundays/Holidays as per request.
+                 </li>
+                 <li>
+                   Proper Attire e.g School/Office Uniform, Casual should be observed.
+                   <br />
+                   No wearing of shorts, sleeveless, sandals, sportswear, slippers are allowed for the visit.
+                 </li>
+                 <li>Observe cleanliness and orderliness at all times; No Littering; No Loitering, too.</li>
+                 <li>Observe proper decorum during the visit.</li>
+                 <li>There are toilets available; Male/Female; Please use it properly.</li>
+                 <li>You're not allowed to enter the "TUNNEL" nor touch any items on display.</li>
+                 <li>
+                   Since, CASA HACIENDA is under the on-going renovations, going to the 2nd floor, 3rd floor, Roof top
+                   and basement is strictly prohibited.
+                 </li>
+                 <li>You can use the vicinity in front of it for Parking purposes.</li>
+                 <li>
+                   Likewise, the Back part of the place where Canas River is located is ALSO prohibited for security
+                   reason.
+                 </li>
+                 <li>
+                   The Information Desk serves as the Inquiries site and Brochure Display Area. Also, the Municipal
+                   Publication "Ang Dagat at Panulat-Mayor's Ricaf Corner is there.
+                 </li>
+                 <li>
+                   The Municipal Tourism Office is located at the Ground Floor where Mr. Ruben R. Quinto, Municipal
+                   Tourism Officer performs his tasks and other matters. This is where you will be entertained for
+                   reservation and other queries.
+                 </li>
+                 <li>
+                   For Reservations: Please submit the following
+                   <ul className="list-disc pl-5 mt-1 space-y-1">
+                     <li>Letter of Permission(encoded) (two copies) address to Mr. Ruben R. Quinto</li>
+                     <li>Authorization from the School Officials et.al.</li>
+                     <li>Inform/Set the schedule intended to visit</li>
+                   </ul>
+                   <p className="mt-2">
+                     II. Or Through: email <span className="underline">tourismoffice886@gmail.com</span>, text message/or
+                     call at (046) 886 9707
+                   </p>
+                 </li>
+                 <li>No excuses on nearby towns/proximity regarding the protocol on Reservation.</li>
+                 <li>
+                   Other visitors such as Foreigners, Walk-in coming from Manila or near far places are allowed on the
+                   unexpected schedule of visitations for humanitarian reasons
+                 </li>
+                 <li>
+                   CASA HACIENDA DE TEJEROS is no longer use as venue for parties, practices and unpermitted assemblies.
+                   ONLY: Municipal Meetings, Organizations, Schools and others related to History, Heritage, respective
+                   function per se. STILL, submit a Letter of Permission for its use/Follow the Protocol.
+                 </li>
+                 <li>
+                   The façade of the Casa Hacienda de Tejeros (within the vicinity) has benches; also serves as an open
+                   park, open to public consumption, but still, please follow the protocol: seek permission inside.
+                   Municipal Tourism Office. NOT AVAILABLE FOR PARKING (privately), PLEASE...
+                 </li>
+                 <li>
+                   CASA HACIENDA DE TEJEROS is closely supervised under the LGU-Rosario, Office of the Mayor and
+                   Municipal Tourism Office.
+                 </li>
+               </ol>
 
               <p className="mt-4">We hope you find the aforementioned items in order.</p>
               <p>Thank You.</p>
@@ -1476,7 +1480,7 @@ const Booking = () => {
                 }}
                 className="w-full btn-primary py-2 px-4 rounded-lg"
               >
-                Book Another Visit
+                Close
               </button>
             </div>
           </div>

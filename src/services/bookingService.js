@@ -71,15 +71,9 @@ export const bookingService = {
           console.warn('Failed to send verification email:', emailError);
           // Don't fail the booking creation if email fails
         }
-      } else {
-        // Send confirmation email immediately (for already verified or test mode)
-        try {
-          await this.sendBookingConfirmationEmail(docRef.id);
-        } catch (emailError) {
-          console.warn('Failed to send confirmation email:', emailError);
-          // Don't fail the booking creation if email fails
-        }
       }
+      // REMOVED: Don't send confirmation email here to prevent duplicates
+      // The confirmation email will be sent from FirebaseActionRedirect.js after email verification
 
       // Send admin notification for new booking
       try {
@@ -299,6 +293,7 @@ export const bookingService = {
 
   // Send status update email
   async sendStatusUpdateEmail(bookingId, status) {
+    let templateParams = null;
     try {
       const bookingDoc = await getDoc(doc(db, 'bookings', bookingId));
       const booking = bookingDoc.data();
@@ -322,7 +317,11 @@ export const bookingService = {
           return;
       }
 
-      const emailData = {
+      // Use the correct template structure for template_9wog0ug
+      const templateParams = {
+        to_email: booking.email,
+        to_name: booking.name || 'Guest',
+        email: booking.email, // For Reply To field
         status: status.toUpperCase(),
         from_name: booking.name,
         from_email: booking.email,
@@ -345,16 +344,22 @@ export const bookingService = {
       // Import EmailJS dynamically
       const emailjs = await import('@emailjs/browser');
       
+      console.log('Sending status update email with data:', templateParams);
+      
       await emailjs.default.send(
-        process.env.REACT_APP_EMAILJS_SERVICE_ID,
-        'template_9wog0ug', // Booking status update template
-        emailData,
-        { publicKey: process.env.REACT_APP_EMAILJS_PUBLIC_KEY }
+        'service_wgx7m5q', // Use the service ID you provided
+        'template_9wog0ug', // Use the correct template ID
+        templateParams,
+        { publicKey: 's7q183h_v5_g0Gu3X' } // Use the public key you provided
       );
       console.log(`Status update email sent successfully to ${booking.email}`);
       
     } catch (error) {
       console.error('Error sending status update email:', error);
+      console.error('Email data that failed:', templateParams);
+      console.error('Service ID: service_wgx7m5q');
+      console.error('Template ID: template_9wog0ug');
+      console.error('Public Key: s7q183h_v5_g0Gu3X');
     }
   },
 

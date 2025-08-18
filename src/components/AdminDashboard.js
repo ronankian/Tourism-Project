@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Users, Clock, CheckCircle, XCircle, Eye, Mail, Settings, Power, PowerOff, AlertTriangle, BarChart3, TrendingUp, Phone, MapPin, Globe, Megaphone, LogOut } from 'lucide-react';
+import { Calendar, Users, Clock, CheckCircle, XCircle, Eye, Mail, Settings, Power, PowerOff, AlertTriangle, BarChart3, TrendingUp, Phone, MapPin, Globe, Megaphone, LogOut, RefreshCw } from 'lucide-react';
 import { bookingService } from '../services/bookingService';
 import { bookingSettingsService } from '../services/bookingSettingsService';
 import { advisoryService } from '../services/advisoryService';
+import { passwordService } from '../services/passwordService';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import { useContact } from '../contexts/ContactContext';
@@ -16,7 +17,15 @@ const AdminDashboard = () => {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [adminNotes, setAdminNotes] = useState('');
-  const [activeTab, setActiveTab] = useState('bookings'); // 'bookings', 'settings', 'contact', or 'advisory'
+  const [activeTab, setActiveTab] = useState('bookings'); // 'bookings', 'settings', 'contact', 'advisory', or 'password'
+  
+  // Password change state
+  const [passwordForm, setPasswordForm] = useState({
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [passwordLoading, setPasswordLoading] = useState(false);
   
   // Advisory state
   const [advisories, setAdvisories] = useState([]);
@@ -27,6 +36,10 @@ const AdminDashboard = () => {
     message: '',
     isActive: true
   });
+  
+  // Delete confirmation modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [advisoryToDelete, setAdvisoryToDelete] = useState(null);
   
   // Booking settings state
   const [bookingSettings, setBookingSettings] = useState(null);
@@ -172,15 +185,21 @@ const AdminDashboard = () => {
   };
 
   const handleDeleteAdvisory = async (id) => {
-    if (window.confirm('Are you sure you want to delete this advisory?')) {
-      try {
-        await advisoryService.deleteAdvisory(id);
-        toast.success('Advisory deleted successfully');
-        loadAdvisories();
-      } catch (error) {
-        console.error('Error deleting advisory:', error);
-        toast.error('Failed to delete advisory');
-      }
+    setAdvisoryToDelete(id);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDeleteAdvisory = async () => {
+    if (!advisoryToDelete) return;
+    try {
+      await advisoryService.deleteAdvisory(advisoryToDelete);
+      toast.success('Advisory deleted successfully');
+      setShowDeleteModal(false);
+      setAdvisoryToDelete(null);
+      loadAdvisories();
+    } catch (error) {
+      console.error('Error deleting advisory:', error);
+      toast.error('Failed to delete advisory');
     }
   };
 
@@ -296,6 +315,47 @@ const AdminDashboard = () => {
     } catch (error) {
       console.error('Error updating daily booking limit:', error);
       toast.error(error.message || 'Failed to update daily booking limit');
+    }
+  };
+
+  // Password change handler
+  const handlePasswordChange = async () => {
+    try {
+      setPasswordLoading(true);
+      
+      // Validation
+      if (!passwordForm.oldPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+        toast.error('Please fill in all password fields');
+        return;
+      }
+
+      if (passwordForm.newPassword.length < 8) {
+        toast.error('New password must be at least 8 characters long');
+        return;
+      }
+
+      if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+        toast.error('New password and confirm password do not match');
+        return;
+      }
+
+      // Use the password service to change the password
+      await passwordService.changeAdminPassword(passwordForm.oldPassword, passwordForm.newPassword);
+      
+      toast.success('Password changed successfully! You can now use the new password to log in.');
+      
+      // Reset form
+      setPasswordForm({
+        oldPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+      
+    } catch (error) {
+      console.error('Error changing password:', error);
+      toast.error(error.message || 'Failed to change password');
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -468,6 +528,20 @@ const AdminDashboard = () => {
                   <span className="sm:hidden">Advisory</span>
                 </div>
               </button>
+              <button
+                onClick={() => setActiveTab('password')}
+                className={`py-3 md:py-4 px-2 md:px-1 border-b-2 font-medium text-xs md:text-sm ${
+                  activeTab === 'password'
+                    ? 'border-white text-white'
+                    : 'border-transparent text-white/70 hover:text-white hover:border-white/50'
+                }`}
+              >
+                <div className="flex items-center space-x-1 md:space-x-2">
+                  <Power className="w-4 h-4 md:w-5 md:h-5" />
+                  <span className="hidden sm:inline">Change Password</span>
+                  <span className="sm:hidden">Password</span>
+                </div>
+              </button>
             </nav>
           </div>
         </div>
@@ -505,46 +579,58 @@ const AdminDashboard = () => {
           <>
             {/* Filters */}
             <div className="bg-white rounded-lg p-4 md:p-6 shadow-sm mb-6">
-              <div className="flex flex-wrap gap-2 md:gap-4">
+              <div className="flex flex-wrap gap-2 md:gap-4 justify-between items-center">
+                <div className="flex flex-wrap gap-2 md:gap-4">
+                  <button
+                    onClick={() => setSelectedStatus('all')}
+                    className={`px-3 md:px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base ${
+                      selectedStatus === 'all' 
+                        ? 'bg-[#5d9c59] text-white' 
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    All Bookings
+                  </button>
+                  <button
+                    onClick={() => setSelectedStatus('pending')}
+                    className={`px-3 md:px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base ${
+                      selectedStatus === 'pending' 
+                        ? 'bg-yellow-500 text-white' 
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Pending
+                  </button>
+                  <button
+                    onClick={() => setSelectedStatus('verified')}
+                    className={`px-3 md:px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base ${
+                      selectedStatus === 'verified' 
+                        ? 'bg-blue-500 text-white' 
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Verified
+                  </button>
+                  <button
+                    onClick={() => setSelectedStatus('approved')}
+                    className={`px-3 md:px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base ${
+                      selectedStatus === 'approved' 
+                        ? 'bg-green-500 text-white' 
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Approved
+                  </button>
+                </div>
+                
+                {/* Refresh Button */}
                 <button
-                  onClick={() => setSelectedStatus('all')}
-                  className={`px-3 md:px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base ${
-                    selectedStatus === 'all' 
-                      ? 'bg-[#5d9c59] text-white' 
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                  onClick={loadBookings}
+                  disabled={loading}
+                  className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base bg-[#5d9c59] text-white hover:bg-[#4a7c47] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  All Bookings
-                </button>
-                <button
-                  onClick={() => setSelectedStatus('pending')}
-                  className={`px-3 md:px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base ${
-                    selectedStatus === 'pending' 
-                      ? 'bg-yellow-500 text-white' 
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  Pending
-                </button>
-                <button
-                  onClick={() => setSelectedStatus('verified')}
-                  className={`px-3 md:px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base ${
-                    selectedStatus === 'verified' 
-                      ? 'bg-blue-500 text-white' 
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  Verified
-                </button>
-                <button
-                  onClick={() => setSelectedStatus('approved')}
-                  className={`px-3 md:px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base ${
-                    selectedStatus === 'approved' 
-                      ? 'bg-green-500 text-white' 
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  Approved
+                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                  Refresh
                 </button>
               </div>
             </div>
@@ -1369,6 +1455,69 @@ const AdminDashboard = () => {
             )}
           </div>
         )}
+
+        {/* Password Change Tab */}
+        {activeTab === 'password' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg p-4 md:p-6 shadow-sm">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <Power className="w-5 h-5 mr-2 text-[#5d9c59]" />
+                Change Admin Password
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Current Password
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordForm.oldPassword}
+                    onChange={(e) => setPasswordForm(prev => ({ ...prev, oldPassword: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent"
+                    placeholder="Enter your current password"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    New Password
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordForm.newPassword}
+                    onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent"
+                    placeholder="Enter your new password (minimum 8 characters)"
+                  />
+                  {passwordForm.newPassword && passwordForm.newPassword.length < 8 && (
+                    <p className="text-sm text-red-600 mt-1">Password must be at least 8 characters long</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Confirm New Password
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent"
+                    placeholder="Confirm your new password"
+                  />
+                  {passwordForm.confirmPassword && passwordForm.newPassword !== passwordForm.confirmPassword && (
+                    <p className="text-sm text-red-600 mt-1">Passwords do not match</p>
+                  )}
+                </div>
+                <button
+                  onClick={handlePasswordChange}
+                  disabled={passwordLoading || !passwordForm.oldPassword || !passwordForm.newPassword || !passwordForm.confirmPassword || passwordForm.newPassword.length < 8 || passwordForm.newPassword !== passwordForm.confirmPassword}
+                  className="px-6 py-2 bg-[#5d9c59] text-white rounded-lg hover:bg-[#4a7c47] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {passwordLoading ? 'Changing Password...' : 'Change Password'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal for booking details and actions */}
@@ -1501,6 +1650,32 @@ const AdminDashboard = () => {
                 className="flex-1 px-4 py-2 bg-[#5d9c59] text-white rounded-lg hover:bg-[#4a7c47] transition-colors font-medium"
               >
                 {editingAdvisory ? 'Update Advisory' : 'Add Advisory'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && advisoryToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">Confirm Deletion</h3>
+            <p className="text-sm text-gray-700 mb-4">
+              Are you sure you want to delete this advisory message? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDeleteAdvisory}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Delete
               </button>
             </div>
           </div>
