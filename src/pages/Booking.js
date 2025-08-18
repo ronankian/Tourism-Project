@@ -28,6 +28,17 @@ const Booking = () => {
     schoolOrOrganizationName: ''
   });
 
+  // Compute the minimum selectable date (tomorrow) for the date picker
+  const minSelectableDate = (() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 1);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  })();
+
   // Booking settings state
   const [bookingSettings, setBookingSettings] = useState(null);
   const [settingsLoading, setSettingsLoading] = useState(true);
@@ -483,7 +494,20 @@ const Booking = () => {
     if (bookingData.purpose === 'Other' && !bookingData.otherPurpose.trim()) {
       return false;
     }
-    
+
+    // Enforce that the selected date is tomorrow or later
+    try {
+      const selectedDate = new Date(bookingData.date);
+      if (isNaN(selectedDate)) return false;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const minDate = new Date(today);
+      minDate.setDate(minDate.getDate() + 1);
+      if (selectedDate < minDate) return false;
+    } catch (_err) {
+      return false;
+    }
+
     return true;
   };
 
@@ -527,6 +551,22 @@ const Booking = () => {
     }
     if (bookingData.purpose === 'Other' && !bookingData.otherPurpose.trim()) {
       toast.error('Please specify your purpose of visit');
+      return;
+    }
+
+    // Enforce preferred date must be from tomorrow onwards
+    try {
+      const selectedDate = new Date(bookingData.date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const minDate = new Date(today);
+      minDate.setDate(minDate.getDate() + 1);
+      if (selectedDate < minDate) {
+        toast.error('Preferred date must be from tomorrow onwards.');
+        return;
+      }
+    } catch (_err) {
+      toast.error('Please choose a valid preferred date.');
       return;
     }
 
@@ -1023,6 +1063,7 @@ const Booking = () => {
                        type="date"
                        id="date"
                        required
+                       min={minSelectableDate}
                        onChange={(e) => setBookingData({ ...bookingData, date: e.target.value })}
                        value={bookingData.date || ''}
                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"

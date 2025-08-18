@@ -306,7 +306,10 @@ export const bookingService = {
           break;
           
         case 'rejected':
-          statusMessage = 'Unfortunately, we cannot accommodate your visit request at this time due to scheduling conflicts.';
+          // Prefer the admin-provided notes; fallback to a default message
+          statusMessage = (booking.adminNotes && booking.adminNotes.trim().length > 0)
+            ? booking.adminNotes.trim()
+            : 'Unfortunately, we cannot accommodate your visit request at this time.';
           break;
           
         case 'completed':
