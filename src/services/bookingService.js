@@ -1,4 +1,4 @@
-import { doc, getDoc, updateDoc, collection, query, where, getDocs, serverTimestamp, addDoc, orderBy } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, query, where, getDocs, serverTimestamp, addDoc, orderBy, runTransaction } from 'firebase/firestore';
 import { db } from '../firebase';
 
 
@@ -9,18 +9,88 @@ const getDefaultPermissionLetterLink = () => {
   return process.env.REACT_APP_DEFAULT_PERMISSION_LETTER_LINK || 'https://drive.google.com/file/d/YOUR_DEFAULT_TEMPLATE_FILE_ID/view?usp=sharing';
 };
 
+// Helper: read env and strip inline comments/extra spaces
+function getEnvTrimmed(name, fallback) {
+  try {
+    const raw = process.env[name];
+    if (!raw || typeof raw !== 'string') return fallback;
+    // remove anything after a '#', and trim whitespace
+    const cleaned = raw.split('#')[0].trim();
+    return cleaned || fallback;
+  } catch (_e) {
+    return fallback;
+  }
+}
+
+// Helper: generate a cryptographically strong random token (raw) and its SHA-256 hash (hex)
+async function generateVerificationToken() {
+  const bytes = new Uint8Array(32);
+  (typeof window !== 'undefined' ? window.crypto : crypto).getRandomValues(bytes);
+  const rawToken = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+  const enc = new TextEncoder();
+  const hashBuf = await (typeof window !== 'undefined' ? window.crypto.subtle : crypto.subtle).digest('SHA-256', enc.encode(rawToken));
+  const tokenHash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return { rawToken, tokenHash };
+}
+
+// Helper: format expiry for display (Asia/Manila)
+function formatExpiryDisplay(expiresAtMs) {
+  try {
+    return new Date(expiresAtMs).toLocaleString('en-PH', {
+      timeZone: 'Asia/Manila', year: 'numeric', month: 'long', day: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+  } catch (_e) {
+    return '24 hours';
+  }
+}
+
+// Helper: compute SHA-256 hex of an input string
+async function sha256Hex(input) {
+  const enc = new TextEncoder();
+  const hashBuf = await (typeof window !== 'undefined' ? window.crypto.subtle : crypto.subtle).digest('SHA-256', enc.encode(input));
+  return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Helper: generate human-friendly booking code (BL-YYYY-XXXXXX) and ensure uniqueness
+async function generateUniqueBookingCode() {
+  const year = new Date().getFullYear();
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const num = Math.floor(Math.random() * 1000000);
+    const six = String(num).padStart(6, '0');
+    const code = `BL-${year}-${six}`;
+    const existing = await getDocs(query(collection(db, 'bookings'), where('bookingCode', '==', code)));
+    if (existing.empty) {
+      return code;
+    }
+  }
+  // Fallback with timestamp to avoid collision
+  const fallback = `BL-${year}-${String(Date.now()).slice(-6)}`;
+  return fallback;
+}
+
 export const bookingService = {
   // Check if an email already has any upcoming (active) booking
   async hasActiveBooking(email) {
     if (!email) return false;
     const now = Date.now();
-    const qDup = query(
+    // Fetch by email only to avoid composite index requirements
+    const qByEmail = query(
       collection(db, 'bookings'),
-      where('email', '==', email),
-      where('visitDateTimeEpoch', '>=', now)
+      where('email', '==', email)
     );
-    const dupSnap = await getDocs(qDup);
-    return !dupSnap.empty;
+    const snap = await getDocs(qByEmail);
+    if (snap.empty) return false;
+    const consideredStatuses = new Set(['verified', 'approved', 'completed']);
+    for (const d of snap.docs) {
+      const data = d.data();
+      const visitEpoch = data.visitDateTimeEpoch || 0;
+      const status = String(data.status || '').toLowerCase();
+      if (visitEpoch >= now && consideredStatuses.has(status)) {
+        return true;
+      }
+    }
+    return false;
   },
 
   // Create a new booking
@@ -41,16 +111,27 @@ export const bookingService = {
       // Prevent duplicate active bookings for same email until visit passes
       if (bookingData.email && visitDateTimeEpoch) {
         const now = Date.now();
-        const qDup = query(
+        // Avoid composite index: check by email, then filter in memory
+        const qByEmail = query(
           collection(db, 'bookings'),
-          where('email', '==', bookingData.email),
-          where('visitDateTimeEpoch', '>=', now)
+          where('email', '==', bookingData.email)
         );
-        const dupSnap = await getDocs(qDup);
-        if (!dupSnap.empty) {
-          throw new Error('duplicate_active_booking');
+        const snap = await getDocs(qByEmail);
+        if (!snap.empty) {
+          const consideredStatuses = new Set(['verified', 'approved', 'completed']);
+          for (const d of snap.docs) {
+            const data = d.data();
+            const visitEpoch = data.visitDateTimeEpoch || 0;
+            const status = String(data.status || '').toLowerCase();
+            if (visitEpoch >= now && consideredStatuses.has(status)) {
+              throw new Error('duplicate_active_booking');
+            }
+          }
         }
       }
+
+      // Generate a human-friendly booking code (not used as doc ID to avoid URL issues with special chars)
+      const bookingCode = await generateUniqueBookingCode();
 
       const booking = {
         ...bookingData,
@@ -58,7 +139,8 @@ export const bookingService = {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         emailVerified: bookingData.emailVerified === true ? true : false,
-        visitDateTimeEpoch: visitDateTimeEpoch
+        visitDateTimeEpoch: visitDateTimeEpoch,
+        bookingCode
       };
 
       const docRef = await addDoc(collection(db, 'bookings'), booking);
@@ -104,27 +186,62 @@ export const bookingService = {
       
       const booking = bookingDoc.data();
       
-      // Simple token verification (you may want to implement a more secure system)
+      // Prefer secure token flow if present
+      if (booking.verificationTokenHash) {
+        if (!verificationToken) {
+          throw new Error('Missing verification token');
+        }
+        const incomingHash = await sha256Hex(verificationToken);
+        if (incomingHash !== booking.verificationTokenHash) {
+          throw new Error('Invalid verification token');
+        }
+        // Expiry check
+        if (booking.verificationExpiresAt) {
+          const nowMs = Date.now();
+          const expMs = typeof booking.verificationExpiresAt === 'number'
+            ? booking.verificationExpiresAt
+            : Date.parse(booking.verificationExpiresAt);
+          if (!Number.isNaN(expMs) && nowMs > expMs) {
+            throw new Error('Verification token expired');
+          }
+        }
+
+        // Already verified?
+        if (booking.emailVerified) {
+          return true;
+        }
+
+        // Mark verified and clear token info
+        await updateDoc(doc(db, 'bookings', bookingId), {
+          emailVerified: true,
+          verifiedAt: serverTimestamp(),
+          status: 'verified',
+          verificationTokenHash: null,
+          verificationExpiresAt: null
+        });
+
+        // Send confirmation email
+        await this.sendBookingConfirmationEmail(bookingId);
+        return true;
+      }
+
+      // Fallback legacy token (btoa of email + bookingId)
       const expectedToken = btoa(booking.email + bookingId);
       if (verificationToken !== expectedToken) {
         throw new Error('Invalid verification token');
       }
-      
-      // Check if already verified
+
       if (booking.emailVerified) {
-        return true; // Already verified, no need to update
+        return true;
       }
-      
-      // Update booking status
+
       await updateDoc(doc(db, 'bookings', bookingId), {
         emailVerified: true,
         verifiedAt: serverTimestamp(),
         status: 'verified'
       });
 
-      // Send confirmation email
       await this.sendBookingConfirmationEmail(bookingId);
-      
       return true;
     } catch (error) {
       console.error('Error verifying booking:', error);
@@ -174,26 +291,44 @@ export const bookingService = {
   // Update booking status (admin function)
   async updateBookingStatus(bookingId, status, adminNotes = '') {
     try {
-      const updateData = {
-        status: status,
-        updatedAt: serverTimestamp(),
-        adminNotes: adminNotes
-      };
+      const bookingRef = doc(db, 'bookings', bookingId);
+      let didChange = false;
 
-      // Add status-specific timestamps
-      if (status === 'approved') {
-        updateData.approvedAt = serverTimestamp();
-      } else if (status === 'rejected') {
-        updateData.rejectedAt = serverTimestamp();
-      } else if (status === 'completed') {
-        updateData.completedAt = serverTimestamp();
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(bookingRef);
+        if (!snap.exists()) {
+          throw new Error('Booking not found');
+        }
+
+        const current = snap.data();
+        const currentStatus = String(current.status || '').toLowerCase();
+        if (currentStatus === status) {
+          didChange = false; // no-op; avoids duplicate emails
+          return;
+        }
+
+        const updateData = {
+          status: status,
+          updatedAt: serverTimestamp(),
+          adminNotes: adminNotes
+        };
+
+        if (status === 'approved') {
+          updateData.approvedAt = serverTimestamp();
+        } else if (status === 'rejected') {
+          updateData.rejectedAt = serverTimestamp();
+        } else if (status === 'completed') {
+          updateData.completedAt = serverTimestamp();
+        }
+
+        tx.update(bookingRef, updateData);
+        didChange = true;
+      });
+
+      if (didChange) {
+        await this.sendStatusUpdateEmail(bookingId, status);
       }
 
-      await updateDoc(doc(db, 'bookings', bookingId), updateData);
-
-      // Send status update email
-      await this.sendStatusUpdateEmail(bookingId, status);
-      
       return true;
     } catch (error) {
       console.error('Error updating booking status:', error);
@@ -207,43 +342,51 @@ export const bookingService = {
       const bookingDoc = await getDoc(doc(db, 'bookings', bookingId));
       const booking = bookingDoc.data();
       
-      // Create verification link - you may want to implement a proper token system
-      const verificationLink = `${window.location.origin}/verify-booking?id=${bookingId}&token=${btoa(booking.email + bookingId)}`;
-      
+      // Generate secure single-use token and set expiry (24h)
+      const { rawToken, tokenHash } = await generateVerificationToken();
+      const expiresAtMs = Date.now() + 24 * 60 * 60 * 1000;
+      await updateDoc(doc(db, 'bookings', bookingId), {
+        verificationTokenHash: tokenHash,
+        verificationExpiresAt: expiresAtMs
+      });
+
+      // Build link and template params
+      const verificationLink = `${window.location.origin}/verify-booking?id=${bookingId}&token=${rawToken}`;
+      const verificationExpires = formatExpiryDisplay(expiresAtMs);
+
+      const permissionLetterLink = getDefaultPermissionLetterLink();
       const templateParams = {
         to_email: booking.email,
         to_name: booking.name || 'Guest',
-        subject: 'Verify Your Booking Email - Casa Hacienda de Tejeros',
-        message: `
-          Dear ${booking.name || 'Guest'},
-          
-          Thank you for your booking with Casa Hacienda de Tejeros!
-          
-          To complete your booking, please verify your email address by clicking the link below:
-          
-          ${verificationLink}
-          
-          Booking Details:
-          - Package: ${booking.packageName}
-          - Date: ${booking.date}
-          - Time: ${booking.time}
-          - Guests: ${booking.guests}
-          
-          This link will expire in 24 hours. If you did not make this booking, please ignore this email.
-          
-          Best regards,
-          Casa Hacienda de Tejeros Tourism Office
-        `
+        email: booking.email, // for Reply To: {{email}}
+        reply_to: booking.email,
+        from_name: 'Casa Hacienda de Tejeros',
+        verification_link: verificationLink,
+        verification_expires: verificationExpires,
+        booking_id: booking.bookingCode || bookingId,
+        booking_date: booking.date,
+        booking_time: booking.time,
+        number_of_people: booking.guests,
+        contact_number: booking.phone || '',
+        email_address: booking.email,
+        booking_pdf: permissionLetterLink,
+        booking_filename: 'Permission_Letter_Template.docx',
+        special_requests: booking.adminNotes || '',
+        subject: 'Verify Your Booking Email - Casa Hacienda de Tejeros'
       };
 
       // Import EmailJS dynamically
       const emailjs = await import('@emailjs/browser');
-      
+      const templateId = getEnvTrimmed('REACT_APP_EMAILJS_USER_BOOKING_TEMPLATE_ID', 'template_8yzllnv');
+      // Optional: basic validation
+      if (!templateId || !/^template_/i.test(templateId)) {
+        console.warn('EmailJS template ID seems invalid. Falling back to default template_8yzllnv. Got:', templateId);
+      }
       await emailjs.default.send(
-        process.env.REACT_APP_EMAILJS_SERVICE_ID,
-        'template_8yzllnv', // Booking confirmation template
+        getEnvTrimmed('REACT_APP_EMAILJS_SERVICE_ID', process.env.REACT_APP_EMAILJS_SERVICE_ID),
+        templateId || 'template_8yzllnv',
         templateParams,
-        { publicKey: process.env.REACT_APP_EMAILJS_PUBLIC_KEY }
+        { publicKey: getEnvTrimmed('REACT_APP_EMAILJS_PUBLIC_KEY', process.env.REACT_APP_EMAILJS_PUBLIC_KEY) }
       );
       console.log('Booking verification email sent successfully!');
       
@@ -264,7 +407,7 @@ export const bookingService = {
       const templateParams = {
         to_email: booking.email,
         to_name: booking.name || 'Guest',
-        booking_id: bookingId,
+        booking_id: booking.bookingCode || bookingId,
         booking_date: booking.date,
         booking_time: booking.time,
         number_of_people: booking.guests,
@@ -328,7 +471,7 @@ export const bookingService = {
         status: status.toUpperCase(),
         from_name: booking.name,
         from_email: booking.email,
-        booking_id: bookingId,
+        booking_id: booking.bookingCode || bookingId,
         destination: 'Casa Hacienda de Tejeros',
         visit_date: booking.date,
         visit_time: booking.time,

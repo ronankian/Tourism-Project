@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Users, Clock, CheckCircle, XCircle, Eye, Mail, Settings, Power, PowerOff, AlertTriangle, BarChart3, TrendingUp, Phone, MapPin, Globe, Megaphone, LogOut, RefreshCw } from 'lucide-react';
+import { Calendar, Users, Clock, CheckCircle, XCircle, Eye, Mail, Settings, Power, PowerOff, AlertTriangle, BarChart3, TrendingUp, Phone, MapPin, Globe, Megaphone, LogOut, RefreshCw, Shield, Trash2, Plus, Search, ChevronDown } from 'lucide-react';
+import { securityService } from '../services/securityService';
 import { bookingService } from '../services/bookingService';
 import { bookingSettingsService } from '../services/bookingSettingsService';
 import { advisoryService } from '../services/advisoryService';
@@ -16,8 +17,18 @@ const AdminDashboard = () => {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [rowActionLoading, setRowActionLoading] = useState({});
   const [adminNotes, setAdminNotes] = useState('');
-  const [activeTab, setActiveTab] = useState('bookings'); // 'bookings', 'settings', 'contact', 'advisory', or 'password'
+  const [activeTab, setActiveTab] = useState('bookings'); // 'bookings', 'settings', 'advisory'
+  const [settingsSection, setSettingsSection] = useState('booking'); // 'booking' | 'contact' | 'security'
+  
+  // New filter and pagination state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [recordsPerPage, setRecordsPerPage] = useState(10);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   
   // Password change state
   const [passwordForm, setPasswordForm] = useState({
@@ -75,10 +86,17 @@ const AdminDashboard = () => {
   const { refreshContactInfo } = useContact();
   const navigate = useNavigate();
 
+  // Security Settings state
+  const [restrictedList, setRestrictedList] = useState([]);
+  const [securityLoading, setSecurityLoading] = useState(false);
+  const [restrictForm, setRestrictForm] = useState({ email: '', message: '', expiresAt: '' });
+  const minExpiryValue = new Date().toISOString().slice(0, 16);
+
   useEffect(() => {
     loadBookings();
     loadBookingSettings();
     loadAdvisories();
+    loadRestricted();
   }, []);
 
   const loadBookings = async () => {
@@ -203,17 +221,76 @@ const AdminDashboard = () => {
     }
   };
 
+  // Security handlers
+  const loadRestricted = async () => {
+    try {
+      setSecurityLoading(true);
+      // Auto-prune expired restrictions on load
+      await securityService.pruneExpiredRestrictions();
+      const items = await securityService.listRestrictedEmails();
+      setRestrictedList(items);
+    } catch (e) {
+      console.error('Error loading restricted emails:', e);
+    } finally {
+      setSecurityLoading(false);
+    }
+  };
+
+  const handleAddRestricted = async () => {
+    try {
+      const email = restrictForm.email.trim();
+      if (!email) {
+        toast.error('Enter an email to restrict');
+        return;
+      }
+      let expiresAtMs = null;
+      if (restrictForm.expiresAt) {
+        const ms = Date.parse(restrictForm.expiresAt);
+        if (Number.isNaN(ms)) {
+          toast.error('Invalid expiry date and time');
+          return;
+        }
+        if (ms <= Date.now()) {
+          toast.error('Expiry must be in the future');
+          return;
+        }
+        expiresAtMs = ms;
+      }
+      await securityService.addRestrictedEmail(email, restrictForm.message || '', expiresAtMs);
+      toast.success('Email restricted successfully');
+      setRestrictForm({ email: '', message: '', expiresAt: '' });
+      loadRestricted();
+    } catch (e) {
+      console.error('Error adding restricted email:', e);
+      toast.error('Failed to add restricted email');
+    }
+  };
+
+  const handleRemoveRestricted = async (id) => {
+    try {
+      await securityService.removeRestrictedEmail(id);
+      toast.success('Restriction removed');
+      loadRestricted();
+    } catch (e) {
+      console.error('Error removing restricted email:', e);
+      toast.error('Failed to remove restriction');
+    }
+  };
+
   const handleStatusUpdate = async (bookingId, status) => {
     try {
+      setRowActionLoading(prev => ({ ...prev, [bookingId]: true }));
       await bookingService.updateBookingStatus(bookingId, status, adminNotes);
       toast.success(`Booking ${status} successfully`);
       setShowModal(false);
       setSelectedBooking(null);
       setAdminNotes('');
-      loadBookings(); // Reload bookings
+      await loadBookings(); // Reload bookings
     } catch (error) {
       console.error('Error updating booking status:', error);
       toast.error('Failed to update booking status');
+    } finally {
+      setRowActionLoading(prev => ({ ...prev, [bookingId]: false }));
     }
   };
 
@@ -394,9 +471,86 @@ const AdminDashboard = () => {
     }
   };
 
-  const filteredBookings = selectedStatus === 'all' 
-    ? bookings 
-    : bookings.filter(booking => booking.status === selectedStatus);
+  // Helpers
+  const formatTimestamp = (ts) => {
+    try {
+      if (!ts) return '—';
+      if (typeof ts?.toDate === 'function') {
+        return ts.toDate().toLocaleString();
+      }
+      if (typeof ts === 'number') {
+        return new Date(ts).toLocaleString();
+      }
+      const parsed = Date.parse(ts);
+      if (!Number.isNaN(parsed)) return new Date(parsed).toLocaleString();
+      return String(ts);
+    } catch (_e) {
+      return '—';
+    }
+  };
+
+  // Enhanced filtering logic
+  const visibleStatuses = new Set(['verified', 'approved', 'rejected', 'completed']);
+  const filteredBase = bookings.filter(b => visibleStatuses.has(String(b.status || '').toLowerCase()));
+  
+  // Apply search filter
+  const searchFiltered = searchTerm.trim() === '' ? filteredBase : filteredBase.filter(booking => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      booking.name?.toLowerCase().includes(searchLower) ||
+      booking.email?.toLowerCase().includes(searchLower) ||
+      booking.phone?.toLowerCase().includes(searchLower) ||
+      booking.bookingCode?.toLowerCase().includes(searchLower) ||
+      booking.id?.toLowerCase().includes(searchLower) ||
+      booking.packageName?.toLowerCase().includes(searchLower) ||
+      booking.specialRequests?.toLowerCase().includes(searchLower)
+    );
+  });
+  
+  // Apply date filter
+  const dateFiltered = dateFilter === '' ? searchFiltered : searchFiltered.filter(booking => {
+    const bookingDate = new Date(booking.date);
+    const filterDate = new Date(dateFilter);
+    return bookingDate.toDateString() === filterDate.toDateString();
+  });
+  
+  // Apply status filter
+  const statusFiltered = statusFilter === 'all' 
+    ? dateFiltered
+    : dateFiltered.filter(booking => booking.status === statusFilter);
+  
+  // Pagination
+  const totalRecords = statusFiltered.length;
+  const totalPages = Math.ceil(totalRecords / recordsPerPage);
+  const startIndex = (currentPage - 1) * recordsPerPage;
+  const endIndex = startIndex + recordsPerPage;
+  const paginatedBookings = statusFiltered.slice(startIndex, endIndex);
+  
+  // Update current page if it exceeds total pages
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+  
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, dateFilter, statusFilter, recordsPerPage]);
+  
+  // Close status dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showStatusDropdown && !event.target.closest('.status-dropdown')) {
+        setShowStatusDropdown(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showStatusDropdown]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -423,25 +577,25 @@ const AdminDashboard = () => {
   const stats = [
     { 
       label: 'Total Bookings', 
-      value: bookings.length, 
+      value: statusFiltered.length, 
       icon: Calendar,
       color: 'bg-blue-100 text-blue-600'
     },
     { 
-      label: 'Pending', 
-      value: bookings.filter(b => b.status === 'pending').length, 
+      label: 'Verified', 
+      value: statusFiltered.filter(b => b.status === 'verified').length, 
       icon: Clock,
       color: 'bg-yellow-100 text-yellow-600'
     },
     { 
       label: 'Approved', 
-      value: bookings.filter(b => b.status === 'approved').length, 
+      value: statusFiltered.filter(b => b.status === 'approved').length, 
       icon: CheckCircle,
       color: 'bg-green-100 text-green-600'
     },
     { 
       label: 'Completed', 
-      value: bookings.filter(b => b.status === 'completed').length, 
+      value: statusFiltered.filter(b => b.status === 'completed').length, 
       icon: Users,
       color: 'bg-gray-100 text-gray-600'
     }
@@ -487,34 +641,6 @@ const AdminDashboard = () => {
                 </div>
               </button>
               <button
-                onClick={() => setActiveTab('settings')}
-                className={`py-3 md:py-4 px-2 md:px-1 border-b-2 font-medium text-xs md:text-sm ${
-                  activeTab === 'settings'
-                    ? 'border-white text-white'
-                    : 'border-transparent text-white/70 hover:text-white hover:border-white/50'
-                }`}
-              >
-                <div className="flex items-center space-x-1 md:space-x-2">
-                  <Settings className="w-4 h-4 md:w-5 md:h-5" />
-                  <span className="hidden sm:inline">Booking Settings</span>
-                  <span className="sm:hidden">Settings</span>
-                </div>
-              </button>
-              <button
-                onClick={() => setActiveTab('contact')}
-                className={`py-3 md:py-4 px-2 md:px-1 border-b-2 font-medium text-xs md:text-sm ${
-                  activeTab === 'contact'
-                    ? 'border-white text-white'
-                    : 'border-transparent text-white/70 hover:text-white hover:border-white/50'
-                }`}
-              >
-                <div className="flex items-center space-x-1 md:space-x-2">
-                  <Phone className="w-4 h-4 md:w-5 md:h-5" />
-                  <span className="hidden sm:inline">Contact Settings</span>
-                  <span className="sm:hidden">Contact</span>
-                </div>
-              </button>
-              <button
                 onClick={() => setActiveTab('advisory')}
                 className={`py-3 md:py-4 px-2 md:px-1 border-b-2 font-medium text-xs md:text-sm ${
                   activeTab === 'advisory'
@@ -529,17 +655,17 @@ const AdminDashboard = () => {
                 </div>
               </button>
               <button
-                onClick={() => setActiveTab('password')}
+                onClick={() => setActiveTab('settings')}
                 className={`py-3 md:py-4 px-2 md:px-1 border-b-2 font-medium text-xs md:text-sm ${
-                  activeTab === 'password'
+                  activeTab === 'settings'
                     ? 'border-white text-white'
                     : 'border-transparent text-white/70 hover:text-white hover:border-white/50'
                 }`}
               >
                 <div className="flex items-center space-x-1 md:space-x-2">
-                  <Power className="w-4 h-4 md:w-5 md:h-5" />
-                  <span className="hidden sm:inline">Change Password</span>
-                  <span className="sm:hidden">Password</span>
+                  <Settings className="w-4 h-4 md:w-5 md:h-5" />
+                  <span className="hidden sm:inline">Settings</span>
+                  <span className="sm:hidden">Settings</span>
                 </div>
               </button>
             </nav>
@@ -577,61 +703,225 @@ const AdminDashboard = () => {
 
         {activeTab === 'bookings' && (
           <>
-            {/* Filters */}
+            {/* Enhanced Filters */}
             <div className="bg-white rounded-lg p-4 md:p-6 shadow-sm mb-6">
-              <div className="flex flex-wrap gap-2 md:gap-4 justify-between items-center">
-                <div className="flex flex-wrap gap-2 md:gap-4">
+              <div className="space-y-4">
+                {/* Mobile Layout: 2 columns per row */}
+                <div className="grid grid-cols-2 gap-4 lg:hidden">
+                  {/* First Row: Search Bar and Date Filter */}
+                  <div className="col-span-2 sm:col-span-1 relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input
+                      type="text"
+                      placeholder="Search bookings by name, email, phone, booking ID, or tour option..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent"
+                    />
+                  </div>
+                  
+                  <div className="col-span-2 sm:col-span-1 flex items-center space-x-2">
+                    <Calendar className="w-4 h-4 text-gray-400" />
+                    <input
+                      type="date"
+                      value={dateFilter}
+                      onChange={(e) => setDateFilter(e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent"
+                    />
+                    {dateFilter && (
+                      <button
+                        onClick={() => setDateFilter('')}
+                        className="text-gray-500 hover:text-gray-700"
+                        title="Clear date filter"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* Second Row: Status Dropdown and Refresh Button */}
+                  <div className="col-span-1 relative status-dropdown">
+                    <button
+                      onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg font-medium transition-colors text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300"
+                    >
+                      <span className="truncate">
+                        {statusFilter === 'all' && 'All Bookings'}
+                        {statusFilter === 'verified' && 'Verified'}
+                        {statusFilter === 'approved' && 'Approved'}
+                        {statusFilter === 'completed' && 'Completed'}
+                        {statusFilter === 'rejected' && 'Rejected'}
+                      </span>
+                      <ChevronDown className={`w-4 h-4 transition-transform ${showStatusDropdown ? 'rotate-180' : ''}`} />
+                    </button>
+                    
+                    {showStatusDropdown && (
+                      <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-gray-300 rounded-lg shadow-lg z-10">
+                        <div className="py-1">
+                          {[
+                            { value: 'all', label: 'All Bookings' },
+                            { value: 'verified', label: 'Verified' },
+                            { value: 'approved', label: 'Approved' },
+                            { value: 'completed', label: 'Completed' },
+                            { value: 'rejected', label: 'Rejected' }
+                          ].map((option) => (
+                            <button
+                              key={option.value}
+                              onClick={() => {
+                                setStatusFilter(option.value);
+                                setShowStatusDropdown(false);
+                              }}
+                              className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${
+                                statusFilter === option.value ? 'bg-[#5d9c59] text-white' : 'text-gray-700'
+                              }`}
+                            >
+                              {option.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="col-span-1 flex justify-end">
+                    <button
+                      onClick={loadBookings}
+                      disabled={loading}
+                      className="flex items-center justify-center w-full px-3 py-2 rounded-lg font-medium transition-colors text-sm bg-[#5d9c59] text-white hover:bg-[#4a7c47] disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Refresh"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Desktop Layout: Original layout */}
+                <div className="hidden lg:flex flex-col lg:flex-row gap-4">
+                  {/* Left side: Search, Date, and Status filters */}
+                  <div className="flex flex-col sm:flex-row gap-4 flex-1">
+                    {/* Search Bar */}
+                    <div className="flex-1 relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <input
+                        type="text"
+                        placeholder="Search bookings by name, email, phone, booking ID, or tour option..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent"
+                      />
+                    </div>
+                    
+                    {/* Date Filter */}
+                    <div className="flex items-center space-x-2">
+                      <Calendar className="w-4 h-4 text-gray-400" />
+                      <input
+                        type="date"
+                        value={dateFilter}
+                        onChange={(e) => setDateFilter(e.target.value)}
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent"
+                      />
+                      {dateFilter && (
+                        <button
+                          onClick={() => setDateFilter('')}
+                          className="text-gray-500 hover:text-gray-700"
+                          title="Clear date filter"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                    
+                    {/* Status Dropdown */}
+                    <div className="relative status-dropdown">
+                      <button
+                        onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                        className="flex items-center space-x-2 px-3 md:px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300"
+                      >
+                        <span>
+                          {statusFilter === 'all' && 'All Bookings'}
+                          {statusFilter === 'verified' && 'Verified'}
+                          {statusFilter === 'approved' && 'Approved'}
+                          {statusFilter === 'completed' && 'Completed'}
+                          {statusFilter === 'rejected' && 'Rejected'}
+                        </span>
+                        <ChevronDown className={`w-4 h-4 transition-transform ${showStatusDropdown ? 'rotate-180' : ''}`} />
+                      </button>
+                      
+                      {showStatusDropdown && (
+                        <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-gray-300 rounded-lg shadow-lg z-10">
+                          <div className="py-1">
+                            {[
+                              { value: 'all', label: 'All Bookings' },
+                              { value: 'verified', label: 'Verified' },
+                              { value: 'approved', label: 'Approved' },
+                              { value: 'completed', label: 'Completed' },
+                              { value: 'rejected', label: 'Rejected' }
+                            ].map((option) => (
+                              <button
+                                key={option.value}
+                                onClick={() => {
+                                  setStatusFilter(option.value);
+                                  setShowStatusDropdown(false);
+                                }}
+                                className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${
+                                  statusFilter === option.value ? 'bg-[#5d9c59] text-white' : 'text-gray-700'
+                                }`}
+                              >
+                                {option.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Clear All Filters */}
+                    {(searchTerm || dateFilter || statusFilter !== 'all') && (
+                      <button
+                        onClick={() => {
+                          setSearchTerm('');
+                          setDateFilter('');
+                          setStatusFilter('all');
+                        }}
+                        className="px-3 md:px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      >
+                        Clear Filters
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* Right side: Refresh Button */}
                   <button
-                    onClick={() => setSelectedStatus('all')}
-                    className={`px-3 md:px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base ${
-                      selectedStatus === 'all' 
-                        ? 'bg-[#5d9c59] text-white' 
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                    onClick={loadBookings}
+                    disabled={loading}
+                    className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base bg-[#5d9c59] text-white hover:bg-[#4a7c47] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    All Bookings
-                  </button>
-                  <button
-                    onClick={() => setSelectedStatus('pending')}
-                    className={`px-3 md:px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base ${
-                      selectedStatus === 'pending' 
-                        ? 'bg-yellow-500 text-white' 
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Pending
-                  </button>
-                  <button
-                    onClick={() => setSelectedStatus('verified')}
-                    className={`px-3 md:px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base ${
-                      selectedStatus === 'verified' 
-                        ? 'bg-blue-500 text-white' 
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Verified
-                  </button>
-                  <button
-                    onClick={() => setSelectedStatus('approved')}
-                    className={`px-3 md:px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base ${
-                      selectedStatus === 'approved' 
-                        ? 'bg-green-500 text-white' 
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Approved
+                    <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                    Refresh
                   </button>
                 </div>
                 
-                {/* Refresh Button */}
-                <button
-                  onClick={loadBookings}
-                  disabled={loading}
-                  className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg font-medium transition-colors text-sm md:text-base bg-[#5d9c59] text-white hover:bg-[#4a7c47] disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                  Refresh
-                </button>
+                {/* Active Filters Display */}
+                {(searchTerm || dateFilter || statusFilter !== 'all') && (
+                  <div className="flex flex-wrap gap-2 text-sm">
+                    <span className="text-gray-600">Active filters:</span>
+                    {searchTerm && (
+                      <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">
+                        Search: "{searchTerm}"
+                      </span>
+                    )}
+                    {dateFilter && (
+                      <span className="px-2 py-1 bg-green-100 text-green-800 rounded">
+                        Date: {new Date(dateFilter).toLocaleDateString()}
+                      </span>
+                    )}
+                    {statusFilter !== 'all' && (
+                      <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded">
+                        Status: {statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </>
@@ -646,7 +936,7 @@ const AdminDashboard = () => {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#5d9c59] mx-auto"></div>
                   <p className="mt-2 text-gray-600">Loading bookings...</p>
                 </div>
-              ) : filteredBookings.length === 0 ? (
+              ) : statusFiltered.length === 0 ? (
                 <div className="p-8 text-center">
                   <p className="text-gray-600">No bookings found</p>
                 </div>
@@ -656,10 +946,13 @@ const AdminDashboard = () => {
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Customer
+                          Booking ID
                         </th>
                         <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Package
+                          Visitor
+                        </th>
+                        <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Tour Option
                         </th>
                         <th className="px-3 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Date
@@ -673,7 +966,7 @@ const AdminDashboard = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredBookings.map((booking, index) => (
+                      {paginatedBookings.map((booking, index) => (
                         <motion.tr
                           key={booking.id}
                           initial={{ opacity: 0, y: 20 }}
@@ -681,6 +974,9 @@ const AdminDashboard = () => {
                           transition={{ duration: 0.3, delay: index * 0.05 }}
                           className="hover:bg-gray-50"
                         >
+                          <td className="px-3 md:px-6 py-4 whitespace-nowrap text-xs md:text-sm text-gray-900 font-mono">
+                            {booking.bookingCode || booking.id}
+                          </td>
                           <td className="px-3 md:px-6 py-4 whitespace-nowrap">
                             <div>
                               <div className="text-sm font-medium text-gray-900">{booking.name}</div>
@@ -719,7 +1015,8 @@ const AdminDashboard = () => {
                                 <>
                                   <button
                                     onClick={() => handleStatusUpdate(booking.id, 'approved')}
-                                    className="text-green-600 hover:text-green-800"
+                                    disabled={!!rowActionLoading[booking.id]}
+                                    className={`text-green-600 hover:text-green-800 ${rowActionLoading[booking.id] ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     title="Approve"
                                   >
                                     <CheckCircle className="w-4 h-4" />
@@ -729,7 +1026,8 @@ const AdminDashboard = () => {
                                       setSelectedBooking(booking);
                                       setShowModal(true);
                                     }}
-                                    className="text-red-600 hover:text-red-800"
+                                    disabled={!!rowActionLoading[booking.id]}
+                                    className={`text-red-600 hover:text-red-800 ${rowActionLoading[booking.id] ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     title="Reject"
                                   >
                                     <XCircle className="w-4 h-4" />
@@ -751,23 +1049,125 @@ const AdminDashboard = () => {
                       ))}
                     </tbody>
                   </table>
+                  
+                  {/* Pagination Controls */}
+                  {totalPages > 1 && (
+                    <div className="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+                      <div className="flex items-center justify-between">
+                        {/* Records per page and info */}
+                        <div className="flex items-center space-x-4">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm text-gray-700">Show</span>
+                            <select
+                              value={recordsPerPage}
+                              onChange={(e) => setRecordsPerPage(Number(e.target.value))}
+                              className="border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent"
+                            >
+                              <option value={10}>10</option>
+                              <option value={50}>50</option>
+                              <option value={100}>100</option>
+                            </select>
+                            <span className="text-sm text-gray-700">records per page.</span>
+                          </div>
+                          <div className="text-sm text-gray-700">
+                            Showing {startIndex + 1} to {Math.min(endIndex, totalRecords)} of {totalRecords} records.
+                          </div>
+                        </div>
+                        
+                        {/* Pagination buttons */}
+                        <div className="flex items-center space-x-1">
+                          <button
+                            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                            disabled={currentPage === 1}
+                            className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Previous
+                          </button>
+                          
+                          {/* Page numbers */}
+                          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            let pageNum;
+                            if (totalPages <= 5) {
+                              pageNum = i + 1;
+                            } else if (currentPage <= 3) {
+                              pageNum = i + 1;
+                            } else if (currentPage >= totalPages - 2) {
+                              pageNum = totalPages - 4 + i;
+                            } else {
+                              pageNum = currentPage - 2 + i;
+                            }
+                            
+                            return (
+                              <button
+                                key={pageNum}
+                                onClick={() => setCurrentPage(pageNum)}
+                                className={`px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 ${
+                                  currentPage === pageNum 
+                                    ? 'bg-[#5d9c59] text-white border-[#5d9c59]' 
+                                    : 'text-gray-700'
+                                }`}
+                              >
+                                {pageNum}
+                              </button>
+                            );
+                          })}
+                          
+                          <button
+                            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                            disabled={currentPage === totalPages}
+                            className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Next
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           </>
         )}
 
-        {/* Settings Panel */}
+        {/* Settings Panel (sections) */}
         {activeTab === 'settings' && (
           <div className="space-y-6">
-            {settingsLoading ? (
+            {/* Section buttons */}
+            <div className="bg-white rounded-lg p-2 shadow-sm flex space-x-2">
+              <button
+                onClick={()=>setSettingsSection('booking')}
+                title="Booking Settings"
+                className={`px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-center space-x-2 ${settingsSection==='booking'?'bg-[#5d9c59] text-white':'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+              >
+                <Users className="w-4 h-4 md:hidden" />
+                <span className="hidden md:inline">Booking Settings</span>
+              </button>
+              <button
+                onClick={()=>setSettingsSection('contact')}
+                title="Contact Settings"
+                className={`px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-center space-x-2 ${settingsSection==='contact'?'bg-[#5d9c59] text-white':'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+              >
+                <Phone className="w-4 h-4 md:hidden" />
+                <span className="hidden md:inline">Contact Settings</span>
+              </button>
+              <button
+                onClick={()=>setSettingsSection('security')}
+                title="Security Settings"
+                className={`px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-center space-x-2 ${settingsSection==='security'?'bg-[#5d9c59] text-white':'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+              >
+                <Shield className="w-4 h-4 md:hidden" />
+                <span className="hidden md:inline">Security Settings</span>
+              </button>
+            </div>
+
+            {settingsSection === 'booking' && (settingsLoading ? (
               <div className="p-8 text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#5d9c59] mx-auto"></div>
                 <p className="mt-2 text-gray-600">Loading settings...</p>
               </div>
             ) : bookingSettings ? (
               <>
-                {/* Tour Package Controls */}
+                {/* Booking Settings */}
                 <div className="bg-white rounded-lg p-4 md:p-6 shadow-sm">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                     <Users className="w-5 h-5 mr-2 text-[#5d9c59]" />
@@ -1140,208 +1540,113 @@ const AdminDashboard = () => {
               <div className="p-8 text-center">
                 <p className="text-gray-600">Failed to load settings</p>
               </div>
-            )}
-          </div>
-        )}
+            ))}
 
-        {/* Contact Settings Tab */}
-        {activeTab === 'contact' && (
+            {settingsSection === 'contact' && (
           <div className="space-y-6">
-            {settingsLoading ? (
-              <div className="p-8 text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#5d9c59] mx-auto"></div>
-                <p className="mt-2 text-gray-600">Loading contact settings...</p>
-              </div>
-            ) : (
-              <>
-                {/* Contact Settings */}
                 <div className="bg-white rounded-lg p-4 md:p-6 shadow-sm">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                     <Phone className="w-5 h-5 mr-2 text-[#5d9c59]" />
                     Contact Information
                   </h3>
-                  
                   <div className="space-y-6">
-                    {/* Basic Information */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Business Name
-                        </label>
-                        <input
-                          type="text"
-                          value={contactInfo.businessName}
-                          onChange={(e) => handleContactInfoChange('businessName', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent"
-                          placeholder="Casa Hacienda"
-                        />
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Business Name</label>
+                        <input type="text" value={contactInfo.businessName} onChange={(e)=>handleContactInfoChange('businessName', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent" placeholder="Casa Hacienda" />
                       </div>
-                      
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Email Address
-                        </label>
-                        <input
-                          type="email"
-                          value={contactInfo.email}
-                          onChange={(e) => handleContactInfoChange('email', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent"
-                          placeholder="tourismoffice886@gmail.com"
-                        />
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                        <input type="email" value={contactInfo.email} onChange={(e)=>handleContactInfoChange('email', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent" placeholder="tourismoffice886@gmail.com" />
                       </div>
                     </div>
-
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Phone Number
-                        </label>
-                        <input
-                          type="tel"
-                          value={contactInfo.phone}
-                          onChange={(e) => handleContactInfoChange('phone', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent"
-                          placeholder="(046) 886-9707"
-                        />
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                        <input type="tel" value={contactInfo.phone} onChange={(e)=>handleContactInfoChange('phone', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent" placeholder="(046) 886-9707" />
                       </div>
-                      
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Address
-                        </label>
-                        <input
-                          type="text"
-                          value={contactInfo.address}
-                          onChange={(e) => handleContactInfoChange('address', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent"
-                          placeholder="Casa Hacienda de Tejeros, Rosario, Cavite"
-                        />
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
+                        <input type="text" value={contactInfo.address} onChange={(e)=>handleContactInfoChange('address', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent" placeholder="Casa Hacienda de Tejeros, Rosario, Cavite" />
                       </div>
                     </div>
-
-                    {/* Office Hours */}
                     <div>
-                      <h4 className="font-medium text-gray-900 mb-3 flex items-center">
-                        <Clock className="w-4 h-4 mr-2 text-gray-600" />
-                        Office Hours
-                      </h4>
+                      <h4 className="font-medium text-gray-900 mb-3 flex items-center"><Clock className="w-4 h-4 mr-2 text-gray-600" />Office Hours</h4>
                       <div className="grid grid-cols-1 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Weekdays
-                          </label>
-                          <input
-                            type="text"
-                            value={contactInfo.officeHours?.weekdays || ''}
-                            onChange={(e) => handleContactInfoChange('officeHours.weekdays', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent"
-                            placeholder="Monday - Friday: 8:00 AM - 5:00 PM"
-                          />
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Weekdays</label>
+                          <input type="text" value={contactInfo.officeHours?.weekdays || ''} onChange={(e)=>handleContactInfoChange('officeHours.weekdays', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent" placeholder="Monday - Friday: 8:00 AM - 5:00 PM" />
                         </div>
-                        
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Weekends
-                            </label>
-                            <input
-                              type="text"
-                              value={contactInfo.officeHours?.weekends || ''}
-                              onChange={(e) => handleContactInfoChange('officeHours.weekends', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent"
-                              placeholder="Saturday - Sunday: By appointment only"
-                            />
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Weekends</label>
+                            <input type="text" value={contactInfo.officeHours?.weekends || ''} onChange={(e)=>handleContactInfoChange('officeHours.weekends', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent" placeholder="Saturday - Sunday: By appointment only" />
                           </div>
-                          
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Holidays
-                            </label>
-                            <input
-                              type="text"
-                              value={contactInfo.officeHours?.holidays || ''}
-                              onChange={(e) => handleContactInfoChange('officeHours.holidays', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent"
-                              placeholder="Holidays: By appointment only"
-                            />
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Holidays</label>
+                            <input type="text" value={contactInfo.officeHours?.holidays || ''} onChange={(e)=>handleContactInfoChange('officeHours.holidays', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent" placeholder="Holidays: By appointment only" />
                           </div>
                         </div>
                       </div>
                     </div>
-
-                    {/* Social Media (Optional) */}
-                    <div>
-                      <h4 className="font-medium text-gray-900 mb-3 flex items-center">
-                        <Globe className="w-4 h-4 mr-2 text-gray-600" />
-                        Social Media (Optional)
-                      </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Facebook
-                          </label>
-                          <input
-                            type="url"
-                            value={contactInfo.socialMedia?.facebook || ''}
-                            onChange={(e) => handleContactInfoChange('socialMedia.facebook', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent"
-                            placeholder="https://facebook.com/..."
-                          />
-                        </div>
-                        
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Instagram
-                          </label>
-                          <input
-                            type="url"
-                            value={contactInfo.socialMedia?.instagram || ''}
-                            onChange={(e) => handleContactInfoChange('socialMedia.instagram', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent"
-                            placeholder="https://instagram.com/..."
-                          />
-                        </div>
-                        
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Twitter
-                          </label>
-                          <input
-                            type="url"
-                            value={contactInfo.socialMedia?.twitter || ''}
-                            onChange={(e) => handleContactInfoChange('socialMedia.twitter', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent"
-                            placeholder="https://twitter.com/..."
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Save Button */}
                     <div className="flex justify-end pt-4 border-t border-gray-200">
-                      <button
-                        onClick={handleUpdateContactInfo}
-                        className="px-6 py-2 bg-[#5d9c59] text-white rounded-lg hover:bg-[#4a7c47] transition-colors font-medium"
-                      >
-                        Save Contact Information
-                      </button>
-                    </div>
-
-                    <div className="flex items-start space-x-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <MapPin className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-blue-800">Contact Information Updates</p>
-                        <p className="text-sm text-blue-700">
-                          Changes to contact information will be reflected across the website including the header, footer, and contact pages. Make sure all information is accurate before saving.
-                        </p>
-                      </div>
+                      <button onClick={handleUpdateContactInfo} className="px-6 py-2 bg-[#5d9c59] text-white rounded-lg hover:bg-[#4a7c47] transition-colors font-medium">Save Contact Information</button>
                     </div>
                   </div>
                 </div>
-              </>
+              </div>
+            )}
+
+            {settingsSection === 'security' && (
+              <div className="space-y-6">
+                <div className="bg-white rounded-lg p-4 md:p-6 shadow-sm">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center"><Shield className="w-5 h-5 mr-2 text-[#5d9c59]" />Security Settings</h3>
+                  <div className="space-y-4 mb-8">
+                    <h4 className="text-sm font-semibold text-gray-900">Change Admin Password</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <input type="password" placeholder="Current Password" value={passwordForm.oldPassword} onChange={(e)=>setPasswordForm(p=>({...p,oldPassword:e.target.value}))} className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent" />
+                      <input type="password" placeholder="New Password" value={passwordForm.newPassword} onChange={(e)=>setPasswordForm(p=>({...p,newPassword:e.target.value}))} className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent" />
+                      <input type="password" placeholder="Confirm New Password" value={passwordForm.confirmPassword} onChange={(e)=>setPasswordForm(p=>({...p,confirmPassword:e.target.value}))} className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent" />
+                    </div>
+                    <button onClick={handlePasswordChange} disabled={passwordLoading || !passwordForm.oldPassword || !passwordForm.newPassword || !passwordForm.confirmPassword || passwordForm.newPassword.length < 8 || passwordForm.newPassword !== passwordForm.confirmPassword} className="px-6 py-2 bg-[#5d9c59] text-white rounded-lg hover:bg-[#4a7c47] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed">{passwordLoading ? 'Changing Password...' : 'Change Password'}</button>
+                        </div>
+                        
+                        <div>
+                    <h4 className="text-sm font-semibold text-gray-900 mb-3">Restricted Emails</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                      <input type="email" placeholder="Email to restrict" value={restrictForm.email} onChange={(e)=>setRestrictForm({...restrictForm,email:e.target.value})} className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent" />
+                      <input type="datetime-local" placeholder="Expiry (optional)" value={restrictForm.expiresAt} min={minExpiryValue} onChange={(e)=>setRestrictForm({...restrictForm,expiresAt:e.target.value})} className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent" />
+                      <input type="text" placeholder="Message (optional)" value={restrictForm.message} onChange={(e)=>setRestrictForm({...restrictForm,message:e.target.value})} className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent" />
+                        </div>
+                    <button onClick={handleAddRestricted} className="inline-flex items-center px-4 py-2 bg-[#5d9c59] text-white rounded-lg hover:bg-[#4a7c47] transition-colors font-medium"><Plus className="w-4 h-4 mr-2"/>Add Restriction</button>
+                    <div className="mt-4 border rounded-lg overflow-hidden">
+                      <div className="bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700">Active Restrictions</div>
+                      <div className="divide-y">
+                        {securityLoading ? (
+                          <div className="p-3 text-sm text-gray-600">Loading...</div>
+                        ) : restrictedList.length === 0 ? (
+                          <div className="p-3 text-sm text-gray-600">No restricted emails.</div>
+                        ) : (
+                          restrictedList.map(item => (
+                            <div key={item.id} className="p-3 flex items-center justify-between text-sm">
+                        <div>
+                                <div className="font-medium text-gray-900">{item.email}</div>
+                                <div className="text-gray-600">{item.message || '—'} {item.expiresAtMs ? `• Expires: ${new Date(item.expiresAtMs).toLocaleString()}` : '• Permanent'}</div>
+                        </div>
+                              <button onClick={()=>handleRemoveRestricted(item.id)} className="text-red-600 hover:text-red-800" title="Remove"><Trash2 className="w-4 h-4"/></button>
+                      </div>
+                          ))
+                        )}
+                    </div>
+                    </div>
+                      </div>
+                    </div>
+                  </div>
             )}
           </div>
         )}
+
+        
 
         {/* Advisory Messages Tab */}
         {activeTab === 'advisory' && (
@@ -1456,64 +1761,57 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* Password Change Tab */}
-        {activeTab === 'password' && (
+        {/* Security Settings Section within Settings handled above */}
+        {false && (
           <div className="space-y-6">
             <div className="bg-white rounded-lg p-4 md:p-6 shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <Power className="w-5 h-5 mr-2 text-[#5d9c59]" />
-                Change Admin Password
+                <Shield className="w-5 h-5 mr-2 text-[#5d9c59]" />
+                Security Settings
               </h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Current Password
-                  </label>
-                  <input
-                    type="password"
-                    value={passwordForm.oldPassword}
-                    onChange={(e) => setPasswordForm(prev => ({ ...prev, oldPassword: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent"
-                    placeholder="Enter your current password"
-                  />
+              {/* Change Password */}
+              <div className="space-y-4 mb-8">
+                <h4 className="text-sm font-semibold text-gray-900">Change Admin Password</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <input type="password" placeholder="Current Password" value={passwordForm.oldPassword} onChange={(e)=>setPasswordForm(p=>({...p,oldPassword:e.target.value}))} className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent" />
+                  <input type="password" placeholder="New Password" value={passwordForm.newPassword} onChange={(e)=>setPasswordForm(p=>({...p,newPassword:e.target.value}))} className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent" />
+                  <input type="password" placeholder="Confirm New Password" value={passwordForm.confirmPassword} onChange={(e)=>setPasswordForm(p=>({...p,confirmPassword:e.target.value}))} className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent" />
                 </div>
+                <button onClick={handlePasswordChange} disabled={passwordLoading || !passwordForm.oldPassword || !passwordForm.newPassword || !passwordForm.confirmPassword || passwordForm.newPassword.length < 8 || passwordForm.newPassword !== passwordForm.confirmPassword} className="px-6 py-2 bg-[#5d9c59] text-white rounded-lg hover:bg-[#4a7c47] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed">{passwordLoading ? 'Changing Password...' : 'Change Password'}</button>
+              </div>
+
+              {/* Restricted Emails */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    New Password
-                  </label>
-                  <input
-                    type="password"
-                    value={passwordForm.newPassword}
-                    onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent"
-                    placeholder="Enter your new password (minimum 8 characters)"
-                  />
-                  {passwordForm.newPassword && passwordForm.newPassword.length < 8 && (
-                    <p className="text-sm text-red-600 mt-1">Password must be at least 8 characters long</p>
+                <h4 className="text-sm font-semibold text-gray-900 mb-3">Restricted Emails</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                  <input type="email" placeholder="Email to restrict" value={restrictForm.email} onChange={(e)=>setRestrictForm({...restrictForm,email:e.target.value})} className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent" />
+                  <input type="datetime-local" placeholder="Expiry (optional)" value={restrictForm.expiresAt} min={minExpiryValue} onChange={(e)=>setRestrictForm({...restrictForm,expiresAt:e.target.value})} className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent" />
+                  <input type="text" placeholder="Message (optional)" value={restrictForm.message} onChange={(e)=>setRestrictForm({...restrictForm,message:e.target.value})} className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent" />
+                </div>
+                <button onClick={handleAddRestricted} className="inline-flex items-center px-4 py-2 bg-[#5d9c59] text-white rounded-lg hover:bg-[#4a7c47] transition-colors font-medium"><Plus className="w-4 h-4 mr-2"/>Add Restriction</button>
+
+                <div className="mt-4 border rounded-lg overflow-hidden">
+                  <div className="bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700">Active Restrictions</div>
+                  <div className="divide-y">
+                    {securityLoading ? (
+                      <div className="p-3 text-sm text-gray-600">Loading...</div>
+                    ) : restrictedList.length === 0 ? (
+                      <div className="p-3 text-sm text-gray-600">No restricted emails.</div>
+                    ) : (
+                      restrictedList.map(item => (
+                        <div key={item.id} className="p-3 flex items-center justify-between text-sm">
+                <div>
+                            <div className="font-medium text-gray-900">{item.email}</div>
+                            <div className="text-gray-600">
+                              {item.message || '—'} {item.expiresAtMs ? `• Expires: ${new Date(item.expiresAtMs).toLocaleString()}` : '• Permanent'}
+                            </div>
+                          </div>
+                          <button onClick={()=>handleRemoveRestricted(item.id)} className="text-red-600 hover:text-red-800" title="Remove"><Trash2 className="w-4 h-4"/></button>
+                        </div>
+                      ))
                   )}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Confirm New Password
-                  </label>
-                  <input
-                    type="password"
-                    value={passwordForm.confirmPassword}
-                    onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent"
-                    placeholder="Confirm your new password"
-                  />
-                  {passwordForm.confirmPassword && passwordForm.newPassword !== passwordForm.confirmPassword && (
-                    <p className="text-sm text-red-600 mt-1">Passwords do not match</p>
-                  )}
                 </div>
-                <button
-                  onClick={handlePasswordChange}
-                  disabled={passwordLoading || !passwordForm.oldPassword || !passwordForm.newPassword || !passwordForm.confirmPassword || passwordForm.newPassword.length < 8 || passwordForm.newPassword !== passwordForm.confirmPassword}
-                  className="px-6 py-2 bg-[#5d9c59] text-white rounded-lg hover:bg-[#4a7c47] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {passwordLoading ? 'Changing Password...' : 'Change Password'}
-                </button>
               </div>
             </div>
           </div>
@@ -1522,52 +1820,65 @@ const AdminDashboard = () => {
 
       {/* Modal for booking details and actions */}
       {showModal && selectedBooking && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-4 md:p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">Booking Details</h3>
-            
-            <div className="space-y-3 mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3">
+          <div className="bg-white rounded-lg p-4 w-full max-w-md mx-4 flex flex-col">
+            <h3 className="text-base font-semibold mb-2">Booking Details</h3>
+
+            {/* Compact content */}
               <div>
-                <label className="block text-sm font-medium text-gray-700">Customer Name</label>
+              <div className="grid grid-cols-1 gap-2">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600">Booking ID</label>
+                  <p className="text-sm text-gray-900 font-mono">{selectedBooking.bookingCode || selectedBooking.id}</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600">Visitor Name</label>
                 <p className="text-sm text-gray-900">{selectedBooking.name}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Email</label>
+                  <label className="block text-xs font-medium text-gray-600">Email</label>
                 <p className="text-sm text-gray-900">{selectedBooking.email}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Package</label>
-                <p className="text-sm text-gray-900">{selectedBooking.packageName}</p>
+                  <label className="block text-xs font-medium text-gray-600">Preferred Schedule</label>
+                  <p className="text-sm text-gray-900">{selectedBooking.date}{selectedBooking.time ? ` • ${selectedBooking.time}` : ''}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Date</label>
-                <p className="text-sm text-gray-900">{selectedBooking.date}</p>
+                  <label className="block text-xs font-medium text-gray-600">Tour Option</label>
+                  <p className="text-sm text-gray-900">{selectedBooking.packageName}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Special Requests</label>
+                  <label className="block text-xs font-medium text-gray-600">Special Requests</label>
                 <p className="text-sm text-gray-900">{selectedBooking.specialRequests || 'None'}</p>
               </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600">Created/Verified At</label>
+                  <p className="text-sm text-gray-900">{formatTimestamp(selectedBooking.verifiedAt || selectedBooking.createdAt)}</p>
             </div>
-
+                <div>
+                  <label className="block text-xs font-medium text-gray-600">Last Updated</label>
+                  <p className="text-sm text-gray-900">{formatTimestamp(selectedBooking.updatedAt)}</p>
+                </div>
             {selectedBooking.status === 'verified' && (
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Admin Notes (for rejection)
-                </label>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Admin Notes (for rejection)</label>
                 <textarea
                   value={adminNotes}
                   onChange={(e) => setAdminNotes(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent"
-                  rows="3"
+                      className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent text-sm"
+                      rows="2"
                   placeholder="Reason for rejection (optional)"
                 />
               </div>
             )}
+              </div>
+            </div>
 
-            <div className="flex space-x-3">
+            {/* Actions */}
+            <div className="mt-3 flex space-x-2">
               <button
                 onClick={() => setShowModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-sm"
               >
                 Close
               </button>
@@ -1575,13 +1886,15 @@ const AdminDashboard = () => {
                 <>
                   <button
                     onClick={() => handleStatusUpdate(selectedBooking.id, 'approved')}
-                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                    disabled={!!rowActionLoading[selectedBooking.id]}
+                    className={`flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm ${rowActionLoading[selectedBooking.id] ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     Approve
                   </button>
                   <button
                     onClick={() => handleStatusUpdate(selectedBooking.id, 'rejected')}
-                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                    disabled={!!rowActionLoading[selectedBooking.id]}
+                    className={`flex-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm ${rowActionLoading[selectedBooking.id] ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     Reject
                   </button>

@@ -6,7 +6,8 @@ import { bookingService } from '../services/bookingService';
 import { bookingSettingsService } from '../services/bookingSettingsService';
 import { storage, auth } from '../firebase';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { sendSignInLinkToEmail } from 'firebase/auth';
+// import { sendSignInLinkToEmail } from 'firebase/auth';
+import { securityService } from '../services/securityService';
 import toast from 'react-hot-toast';
 import { verifyRecaptchaToken, isRecaptchaValid, getRecaptchaErrorMessage } from '../utils/recaptchaVerification';
 // emailjs removed from the booking page (emails are sent post-verification)
@@ -53,6 +54,8 @@ const Booking = () => {
     const loadBookingSettings = async () => {
       try {
         setSettingsLoading(true);
+        // Prune any expired restrictions opportunistically
+        try { const mod = await import('../services/securityService'); await mod.securityService.pruneExpiredRestrictions(); } catch (_) {}
         const settings = await bookingSettingsService.getBookingSettings();
         setBookingSettings(settings);
         
@@ -157,6 +160,8 @@ const Booking = () => {
   const [showProtocolModal, setShowProtocolModal] = useState(false);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showRestrictionModal, setShowRestrictionModal] = useState(false);
+  const [restrictionMessage, setRestrictionMessage] = useState('');
   const timeoutRef = useRef(null);
 
   // Define onload callback function (must be global)
@@ -588,11 +593,20 @@ const Booking = () => {
     }
 
     try {
+      // Check restricted email list
+      const restrict = await securityService.isEmailRestricted(bookingData.email);
+      if (restrict?.restricted) {
+        setRestrictionMessage(restrict.message || 'This email address is restricted and cannot be used for booking.');
+        setShowRestrictionModal(true);
+        setIsSubmitting(false);
+        return;
+      }
+
       // Duplicate check before doing anything
       try {
         const hasActive = await bookingService.hasActiveBooking(bookingData.email);
         if (hasActive) {
-          const message = 'This email already has an ongoing booking. You can submit a new booking with this email after your previously selected date and time has passed.';
+          const message = 'This email already has an ongoing booking. You can submit a new booking with this email after your ongoing booking has ended.';
           toast.error(message);
           setDuplicateMessage(message);
           setShowVerificationModal(false);
@@ -665,22 +679,19 @@ const Booking = () => {
     }
   };
 
-  // Function to send booking verification email
+  // Create pending booking and trigger EmailJS verification email
   const sendBookingVerificationEmail = async (bookingData) => {
-    // Store booking data temporarily in localStorage
-    localStorage.setItem('pendingBookingDraft', JSON.stringify({
-      bookingData,
-      selectedPackage
-    }));
-    localStorage.setItem('pendingBookingEmail', bookingData.email);
-
-    // Send Firebase email verification link
-    const actionCodeSettings = {
-      url: `${window.location.origin}/firebase-action`,
-      handleCodeInApp: true
+    // Ensure pending status and emailVerified false
+    const payload = {
+      ...bookingData,
+      status: 'pending_email_verification',
+      emailVerified: false
     };
-    
-    await sendSignInLinkToEmail(auth, bookingData.email, actionCodeSettings);
+    const result = await bookingService.createBooking(payload);
+    if (!result?.success) {
+      throw new Error(result?.message || 'Failed to create pending booking');
+    }
+    return result.bookingId;
   };
 
   // Show loading state while checking settings
@@ -1519,6 +1530,28 @@ const Booking = () => {
                   setDuplicateMessage('');
                   resetRecaptcha();
                 }}
+                className="w-full btn-primary py-2 px-4 rounded-lg"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Restricted Email Modal */}
+      {showRestrictionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" />
+          <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center w-12 h-12 rounded-full bg-red-100 mb-4">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M4.93 4.93l14.14 14.14M12 3C7.03 3 3 7.03 3 12s4.03 9 9 9 9-4.03 9-9-4.03-9-9-9z" /></svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Email Restricted by the Administrator</h3>
+              <p className="text-gray-600 mb-6">{restrictionMessage}</p>
+              <button
+                onClick={() => setShowRestrictionModal(false)}
                 className="w-full btn-primary py-2 px-4 rounded-lg"
               >
                 Close

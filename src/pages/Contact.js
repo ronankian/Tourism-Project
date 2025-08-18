@@ -5,6 +5,7 @@ import { useContact } from '../contexts/ContactContext';
 import emailjs from '@emailjs/browser';
 import toast from 'react-hot-toast';
 import { verifyRecaptchaToken, isRecaptchaValid, getRecaptchaErrorMessage } from '../utils/recaptchaVerification';
+import { securityService } from '../services/securityService';
 
 const Contact = () => {
   const { contactInfo } = useContact();
@@ -22,6 +23,8 @@ const Contact = () => {
   const [recaptchaRendered, setRecaptchaRendered] = useState(false);
   const [recaptchaError, setRecaptchaError] = useState(false);
   const [recaptchaFailedToLoad, setRecaptchaFailedToLoad] = useState(false);
+  const [showRestrictionModal, setShowRestrictionModal] = useState(false);
+  const [restrictionMessage, setRestrictionMessage] = useState('');
 
   // Define onload callback function (must be global)
     useEffect(() => {
@@ -127,6 +130,11 @@ const Contact = () => {
       setRecaptchaFailedToLoad(false);
     };
   }, [recaptchaRendered]);
+
+  // Opportunistic prune of expired restrictions on contact load
+  useEffect(() => {
+    (async () => { try { const mod = await import('../services/securityService'); await mod.securityService.pruneExpiredRestrictions(); } catch (_) {} })();
+  }, []);
 
 
 
@@ -242,6 +250,16 @@ const Contact = () => {
       toast.error(emailValidation.message);
       return;
     }
+
+    // Restricted email check
+    try {
+      const restrict = await securityService.isEmailRestricted(formData.email);
+      if (restrict?.restricted) {
+        setRestrictionMessage(restrict.message || 'This email address is restricted and cannot send messages.');
+        setShowRestrictionModal(true);
+        return;
+      }
+    } catch (_e) {}
 
     if (!formData.subject.trim()) {
       toast.error('Please enter a subject for your message.');
@@ -661,6 +679,28 @@ const Contact = () => {
           </motion.div>
         </div>
       </div>
+
+      {/* Restricted Email Modal */}
+      {showRestrictionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" />
+          <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center w-12 h-12 rounded-full bg-red-100 mb-4">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M4.93 4.93l14.14 14.14M12 3C7.03 3 3 7.03 3 12s4.03 9 9 9 9-4.03 9-9-4.03-9-9-9z" /></svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Email Restricted by the Administrator</h3>
+              <p className="text-gray-600 mb-6">{restrictionMessage}</p>
+              <button
+                onClick={() => setShowRestrictionModal(false)}
+                className="w-full btn-primary py-2 px-4 rounded-lg"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

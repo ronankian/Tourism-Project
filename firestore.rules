@@ -53,5 +53,13 @@ service cloud.firestore {
     match /system_settings/{documentId} {
       allow read, write: if true; // Allow access (admin check done in application)
     }
+
+    // Restricted emails (Security Settings)
+    match /restricted_emails/{docId} {
+      // Public read so booking/contact pages can check restrictions
+      allow read: if true;
+      // Writes managed from the admin dashboard (client-side admin gate)
+      allow create, update, delete: if true;
+    }
   }
 } 

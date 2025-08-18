@@ -54,21 +54,32 @@ const VerifyBooking = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className="relative min-h-screen flex items-center justify-center overflow-hidden py-12 px-4 sm:px-6 lg:px-8">
+      {/* Background image */}
+      <div 
+        className="absolute inset-0 w-full h-full bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: 'url(/images/casa-full.webp)', transform: 'scale(1.05)' }}
+      />
+      {/* Gradient overlay (same as About page header) */}
+      <div 
+        className="absolute inset-0"
+        style={{ background: 'linear-gradient(135deg, rgba(93, 156, 89, 0.8) 25%, rgba(223, 46, 56, 0.8) 100%)' }}
+      />
+
+      <div className="relative z-10 max-w-md w-full space-y-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="text-center"
+          className="text-center text-white drop-shadow"
         >
           {status === 'verifying' && (
             <>
-              <Mail className="mx-auto h-12 w-12 text-blue-500 animate-pulse" />
-              <h2 className="mt-6 text-3xl font-bold text-gray-900">
+              <Mail className="mx-auto h-12 w-12 text-blue-200 animate-pulse" />
+              <h2 className="mt-6 text-3xl font-bold">
                 Verifying Your Email
               </h2>
-              <p className="mt-2 text-sm text-gray-600">
+              <p className="mt-2 text-sm text-gray-100/90">
                 Please wait while we verify your booking email address...
               </p>
             </>
@@ -76,11 +87,11 @@ const VerifyBooking = () => {
 
           {status === 'success' && (
             <>
-              <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
-              <h2 className="mt-6 text-3xl font-bold text-gray-900">
+              <CheckCircle className="mx-auto h-12 w-12 text-green-200" />
+              <h2 className="mt-6 text-3xl font-bold">
                 Email Verified!
               </h2>
-              <p className="mt-2 text-sm text-gray-600">
+              <p className="mt-2 text-sm text-gray-100/90">
                 {message}
               </p>
               <div className="mt-6 space-y-4">
@@ -98,11 +109,11 @@ const VerifyBooking = () => {
 
           {status === 'error' && (
             <>
-              <XCircle className="mx-auto h-12 w-12 text-red-500" />
-              <h2 className="mt-6 text-3xl font-bold text-gray-900">
+              <XCircle className="mx-auto h-12 w-12 text-red-200" />
+              <h2 className="mt-6 text-3xl font-bold">
                 Verification Failed
               </h2>
-              <p className="mt-2 text-sm text-gray-600">
+              <p className="mt-2 text-sm text-gray-100/90">
                 {message}
               </p>
               <div className="mt-6 space-y-4">
@@ -126,9 +137,8 @@ const VerifyBooking = () => {
             </>
           )}
         </motion.div>
-
         <div className="text-center">
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-white/80">
             Having trouble? Contact us at (046) 886-9707
           </p>
         </div>
