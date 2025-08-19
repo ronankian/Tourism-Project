@@ -95,8 +95,6 @@ const Home = () => {
 
   const loadAdvisories = async () => {
     try {
-      // Prune expired advisories first
-      await advisoryService.pruneExpiredAdvisories();
       const activeAdvisories = await advisoryService.getActiveAdvisories();
       setAdvisories(activeAdvisories);
     } catch (error) {
@@ -714,8 +712,8 @@ const Home = () => {
                 description: 'Supporting tourism initiatives and community engagement'
               },
               {
-                name: 'Tourism Officer',
-                position: 'Municipal Tourism Office',
+                name: 'Ruben R. Quinto',
+                position: 'Municipal Tourism Officer',
                 image: '/images/leaders/tourism-officer.png',
                 description: 'Preserving and promoting our cultural heritage'
               }
