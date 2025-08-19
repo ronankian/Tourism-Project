@@ -36,16 +36,31 @@ export const advisoryService = {
     }
   },
 
-  // Get active advisories only
+  // Get active advisories only (with expiration check)
   async getActiveAdvisories() {
     try {
       const q = query(collection(db, ADVISORY_COLLECTION), orderBy('createdAt', 'desc'));
       const querySnapshot = await getDocs(q);
       const advisories = [];
+      const now = new Date();
+      
       querySnapshot.forEach((doc) => {
         const data = doc.data();
         if (data.isActive) {
-          advisories.push({ id: doc.id, ...data });
+          // Check if advisory has expired
+          if (data.endTime) {
+            const endTime = new Date(data.endTime);
+            if (now <= endTime) {
+              // Advisory is still active and not expired
+              advisories.push({ id: doc.id, ...data });
+            } else {
+              // Advisory has expired, automatically deactivate it
+              this.deactivateExpiredAdvisory(doc.id);
+            }
+          } else {
+            // No expiration date, always show if active
+            advisories.push({ id: doc.id, ...data });
+          }
         }
       });
       return advisories;
@@ -53,6 +68,45 @@ export const advisoryService = {
       console.error('Error getting active advisories:', error);
       // Return empty array if collection doesn't exist or other errors
       return [];
+    }
+  },
+
+  // Automatically deactivate expired advisories
+  async deactivateExpiredAdvisory(advisoryId) {
+    try {
+      const advisoryRef = doc(db, ADVISORY_COLLECTION, advisoryId);
+      await updateDoc(advisoryRef, {
+        isActive: false,
+        expiredAt: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Error deactivating expired advisory:', error);
+    }
+  },
+
+  // Prune expired advisories (batch operation)
+  async pruneExpiredAdvisories() {
+    try {
+      const q = query(collection(db, ADVISORY_COLLECTION), orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      const now = new Date();
+      const deactivationPromises = [];
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.isActive && data.endTime) {
+          const endTime = new Date(data.endTime);
+          if (now > endTime) {
+            deactivationPromises.push(this.deactivateExpiredAdvisory(doc.id));
+          }
+        }
+      });
+
+      if (deactivationPromises.length > 0) {
+        await Promise.allSettled(deactivationPromises);
+      }
+    } catch (error) {
+      console.error('Error pruning expired advisories:', error);
     }
   },
 

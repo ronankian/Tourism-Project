@@ -45,8 +45,11 @@ const AdminDashboard = () => {
   const [editingAdvisory, setEditingAdvisory] = useState(null);
   const [advisoryForm, setAdvisoryForm] = useState({
     message: '',
-    isActive: true
+    isActive: true,
+    endTime: ''
   });
+  const [advisoryFormErrors, setAdvisoryFormErrors] = useState({});
+  const [advisorySubmitting, setAdvisorySubmitting] = useState(false);
   
   // Delete confirmation modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -90,7 +93,19 @@ const AdminDashboard = () => {
   const [restrictedList, setRestrictedList] = useState([]);
   const [securityLoading, setSecurityLoading] = useState(false);
   const [restrictForm, setRestrictForm] = useState({ email: '', message: '', expiresAt: '' });
+  // Helper function to get current date in datetime-local format
+  const getCurrentDateTimeLocal = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
   const minExpiryValue = new Date().toISOString().slice(0, 16);
+  const minAdvisoryExpiryValue = getCurrentDateTimeLocal();
 
   useEffect(() => {
     loadBookings();
@@ -154,6 +169,8 @@ const AdminDashboard = () => {
   const loadAdvisories = async () => {
     try {
       setAdvisoryLoading(true);
+      // Prune expired advisories first
+      await advisoryService.pruneExpiredAdvisories();
       const advisories = await advisoryService.getAdvisories();
       setAdvisories(advisories);
     } catch (error) {
@@ -166,10 +183,26 @@ const AdminDashboard = () => {
 
   const handleAddAdvisory = async () => {
     try {
+      // Prevent double submission
+      if (advisorySubmitting) return;
+      
       if (!advisoryForm.message.trim()) {
         toast.error('Please enter an advisory message');
         return;
       }
+
+      // Validate expiration date if provided
+      if (advisoryForm.endTime) {
+        const selectedDate = new Date(advisoryForm.endTime);
+        const now = new Date();
+        
+        if (selectedDate <= now) {
+          toast.error('Expiration date must be in the future');
+          return;
+        }
+      }
+
+      setAdvisorySubmitting(true);
 
       if (editingAdvisory) {
         await advisoryService.updateAdvisory(editingAdvisory.id, advisoryForm);
@@ -181,11 +214,14 @@ const AdminDashboard = () => {
 
       setShowAdvisoryModal(false);
       setEditingAdvisory(null);
-      setAdvisoryForm({ message: '', isActive: true });
+      setAdvisoryForm({ message: '', isActive: true, endTime: '' });
+      setAdvisoryFormErrors({});
       loadAdvisories();
     } catch (error) {
       console.error('Error saving advisory:', error);
       toast.error('Failed to save advisory');
+    } finally {
+      setAdvisorySubmitting(false);
     }
   };
 
@@ -193,8 +229,36 @@ const AdminDashboard = () => {
     try {
       const advisory = advisories.find(a => a.id === id);
       const newStatus = !advisory.isActive;
-      await advisoryService.toggleAdvisoryStatus(id, newStatus);
-      toast.success(`Advisory ${newStatus ? 'activated' : 'deactivated'} successfully`);
+      
+      // If we're activating an advisory that has an expired endTime, remove the expiration
+      let updateData = { isActive: newStatus };
+      
+      if (newStatus && advisory.endTime) {
+        const endTime = new Date(advisory.endTime);
+        const now = new Date();
+        
+        if (endTime <= now) {
+          // Advisory has expired, remove the expiration date when reactivating
+          updateData.endTime = null;
+          updateData.expiredAt = null; // Also remove the expiredAt timestamp
+        }
+      }
+      
+      await advisoryService.updateAdvisory(id, updateData);
+      
+      if (newStatus && advisory.endTime) {
+        const endTime = new Date(advisory.endTime);
+        const now = new Date();
+        
+        if (endTime <= now) {
+          toast.success('Advisory activated successfully. Expiration date removed.');
+        } else {
+          toast.success('Advisory activated successfully');
+        }
+      } else {
+        toast.success(`Advisory ${newStatus ? 'activated' : 'deactivated'} successfully`);
+      }
+      
       loadAdvisories();
     } catch (error) {
       console.error('Error toggling advisory status:', error);
@@ -1672,9 +1736,14 @@ const AdminDashboard = () => {
                           <p className="text-sm text-gray-900 font-medium">{advisory.message}</p>
                           <p className="text-xs text-gray-600 mt-1">
                             Status: {advisory.isActive ? 'Active' : 'Inactive'}
-                            {advisory.isActive && advisory.endTime && (
+                            {advisory.endTime && (
                               <>
-                                , Expires: {new Date(advisory.endTime).toLocaleDateString()}
+                                , Expires: {new Date(advisory.endTime).toLocaleString()}
+                              </>
+                            )}
+                            {advisory.expiredAt && !advisory.endTime && advisory.isActive && (
+                              <>
+                                , Reactivated (was expired)
                               </>
                             )}
                           </p>
@@ -1689,8 +1758,11 @@ const AdminDashboard = () => {
                                 setEditingAdvisory(advisory);
                                 setAdvisoryForm({
                                   message: advisory.message,
-                                  isActive: advisory.isActive
+                                  isActive: advisory.isActive,
+                                  endTime: advisory.endTime || ''
                                 });
+                                setAdvisoryFormErrors({});
+                                setAdvisorySubmitting(false);
                                 setShowAdvisoryModal(true);
                               }}
                               className="text-[#5d9c59] hover:text-[#4a7c47] text-sm"
@@ -1749,7 +1821,11 @@ const AdminDashboard = () => {
                        </label>
                      </div>
                      <button
-                       onClick={() => setShowAdvisoryModal(true)}
+                       onClick={() => {
+                         setShowAdvisoryModal(true);
+                         setAdvisoryFormErrors({});
+                         setAdvisorySubmitting(false);
+                       }}
                        className="px-6 py-2 bg-[#5d9c59] text-white rounded-lg hover:bg-[#4a7c47] transition-colors font-medium"
                      >
                        Add Advisory
@@ -1922,7 +1998,10 @@ const AdminDashboard = () => {
                   value={advisoryForm.message}
                   onChange={(e) => setAdvisoryForm(prev => ({ ...prev, message: e.target.value }))}
                   rows="4"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent"
+                  disabled={advisorySubmitting}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent ${
+                    advisorySubmitting ? 'bg-gray-100 cursor-not-allowed' : ''
+                  }`}
                   placeholder="Enter your advisory message here..."
                 />
               </div>
@@ -1932,7 +2011,8 @@ const AdminDashboard = () => {
                   id="isActive"
                   checked={advisoryForm.isActive}
                   onChange={(e) => setAdvisoryForm(prev => ({ ...prev, isActive: e.target.checked }))}
-                  className="mr-2"
+                  disabled={advisorySubmitting}
+                  className={`mr-2 ${advisorySubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                 />
                 <label htmlFor="isActive" className="text-sm text-gray-700">
                   Make this message active
@@ -1942,27 +2022,80 @@ const AdminDashboard = () => {
                 <label className="block text-sm font-medium text-gray-700">
                   Expiration Date (optional)
                 </label>
-                <input
-                  type="datetime-local"
-                  value={advisoryForm.endTime || ''}
-                  onChange={(e) => setAdvisoryForm(prev => ({ ...prev, endTime: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent"
+                                  <input
+                    type="datetime-local"
+                    value={advisoryForm.endTime || ''}
+                    min={minAdvisoryExpiryValue}
+                    disabled={advisorySubmitting}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setAdvisoryForm(prev => ({ ...prev, endTime: value }));
+                    
+                    // Clear error when user starts typing
+                    if (advisoryFormErrors.endTime) {
+                      setAdvisoryFormErrors(prev => ({ ...prev, endTime: null }));
+                    }
+                    
+                    // Validate date if provided
+                    if (value) {
+                      const selectedDate = new Date(value);
+                      const now = new Date();
+                      if (selectedDate <= now) {
+                        setAdvisoryFormErrors(prev => ({ 
+                          ...prev, 
+                          endTime: 'Expiration date must be in the future' 
+                        }));
+                      }
+                    }
+                  }}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#5d9c59] focus:border-transparent ${
+                    advisoryFormErrors.endTime 
+                      ? 'border-red-300 focus:ring-red-500' 
+                      : advisorySubmitting
+                      ? 'border-gray-300 bg-gray-100 cursor-not-allowed'
+                      : 'border-gray-300 focus:ring-[#5d9c59]'
+                  }`}
                 />
+                {advisoryFormErrors.endTime ? (
+                  <p className="text-xs text-red-500 mt-1">
+                    {advisoryFormErrors.endTime}
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Leave empty for no expiration. Must be in the future.
+                  </p>
+                )}
               </div>
             </div>
 
             <div className="flex space-x-3">
               <button
-                onClick={() => setShowAdvisoryModal(false)}
+                onClick={() => {
+                  setShowAdvisoryModal(false);
+                  setAdvisoryFormErrors({});
+                  setAdvisorySubmitting(false);
+                }}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddAdvisory}
-                className="flex-1 px-4 py-2 bg-[#5d9c59] text-white rounded-lg hover:bg-[#4a7c47] transition-colors font-medium"
+                disabled={advisoryFormErrors.endTime || advisorySubmitting}
+                className={`flex-1 px-4 py-2 rounded-lg transition-colors font-medium ${
+                  advisoryFormErrors.endTime || advisorySubmitting
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-[#5d9c59] text-white hover:bg-[#4a7c47]'
+                }`}
               >
-                {editingAdvisory ? 'Update Advisory' : 'Add Advisory'}
+                {advisorySubmitting ? (
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    {editingAdvisory ? 'Updating...' : 'Adding...'}
+                  </div>
+                ) : (
+                  editingAdvisory ? 'Update Advisory' : 'Add Advisory'
+                )}
               </button>
             </div>
           </div>

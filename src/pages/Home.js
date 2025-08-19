@@ -95,6 +95,8 @@ const Home = () => {
 
   const loadAdvisories = async () => {
     try {
+      // Prune expired advisories first
+      await advisoryService.pruneExpiredAdvisories();
       const activeAdvisories = await advisoryService.getActiveAdvisories();
       setAdvisories(activeAdvisories);
     } catch (error) {
